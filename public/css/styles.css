@@ -1,0 +1,213 @@
+:root {
+  --bg: #1a1b2e;
+  --surface: #24263b;
+  --surface-2: #2d2f47;
+  --text: #e8e8f0;
+  --muted: #9a9ab0;
+  --accent: #7c6cf0;
+  --green: #4ade80;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 32px;
+  background: var(--surface);
+  border-bottom: 2px solid var(--accent);
+}
+
+header h1 { font-size: 1.4rem; }
+
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  margin-left: 24px;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+nav a:hover { color: var(--accent); }
+
+main { padding: 32px; max-width: 1400px; margin: 0 auto; }
+
+h2 { margin-bottom: 8px; }
+.muted { color: var(--muted); margin-bottom: 24px; }
+
+/* Buttons */
+.btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, filter 0.15s;
+}
+.btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+.btn.secondary { background: var(--surface-2); color: var(--text); }
+.btn.danger { background: var(--red); }
+.btn.small { padding: 6px 12px; font-size: 0.85rem; }
+
+/* Inputs */
+input, select, textarea {
+  background: var(--surface-2);
+  border: 1px solid #3d3f5c;
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 1rem;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); }
+
+/* Home */
+.home-hero { text-align: center; margin: 48px 0; }
+.home-hero h2 { font-size: 2rem; margin-bottom: 12px; }
+.join-form { display: flex; gap: 12px; justify-content: center; margin-top: 24px; flex-wrap: wrap; }
+
+/* Retro board */
+.board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 24px; }
+.column {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px;
+  min-height: 300px;
+}
+.column h3 { margin-bottom: 16px; font-size: 1.1rem; }
+.column.went_well h3 { color: var(--green); }
+.column.didnt_go_well h3 { color: var(--red); }
+.column.action h3 { color: var(--yellow); }
+
+.card {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 12px;
+  border-left: 4px solid var(--accent);
+  transition: transform 0.15s;
+}
+.card:hover { transform: translateY(-2px); }
+.card .content { margin-bottom: 10px; word-break: break-word; }
+.card .meta { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 0.85rem; }
+.card .vote-btn { cursor: pointer; background: none; border: none; color: var(--muted); font-size: 1rem; }
+.card .vote-btn.voted { color: var(--accent); font-weight: bold; }
+.card .delete-btn { cursor: pointer; background: none; border: none; color: var(--muted); }
+.card .delete-btn:hover { color: var(--red); }
+
+.add-card-form { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.add-card-form textarea { resize: vertical; min-height: 60px; }
+
+/* Participants bar */
+.participants-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.participant-chip {
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.9rem;
+  border: 1px solid var(--accent);
+}
+
+/* Commitments Kanban */
+.kanban { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 16px; }
+.kanban .kcolumn {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px;
+  min-height: 200px;
+}
+.kanban .kcolumn h3 { font-size: 1rem; margin-bottom: 12px; }
+.kanban .kcolumn.pending h3 { color: var(--muted); }
+.kanban .kcolumn.in_progress h3 { color: var(--yellow); }
+.kanban .kcolumn.done h3 { color: var(--green); }
+
+.commitment {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 10px;
+  cursor: grab;
+  border-left: 4px solid var(--muted);
+}
+.commitment.in_progress { border-left-color: var(--yellow); }
+.commitment.done { border-left-color: var(--green); opacity: 0.75; }
+.commitment .desc { margin-bottom: 8px; word-break: break-word; }
+.commitment .meta { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); }
+.commitment .assignee { color: var(--accent); font-weight: 600; }
+.commitment.overdue .due { color: var(--red); font-weight: bold; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--green);
+  color: #1a1b2e;
+  padding: 14px 24px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  transition: opacity 0.3s;
+}
+.toast.hidden { opacity: 0; pointer-events: none; }
+.toast.points { background: var(--yellow); }
+
+/* History grid */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.retro-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px;
+  border-top: 4px solid var(--accent);
+}
+.retro-card h3 { margin-bottom: 8px; }
+.retro-card .stats { color: var(--muted); font-size: 0.9rem; margin: 12px 0; }
+.retro-card .actions { display: flex; gap: 8px; }
+
+/* Leaderboard table */
+table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #3d3f5c; }
+th { color: var(--muted); font-size: 0.85rem; text-transform: uppercase; }
+tr:first-child td { font-weight: bold; color: var(--yellow); }
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 28px;
+  width: 90%;
+  max-width: 480px;
+}
+.modal h3 { margin-bottom: 16px; }
+.modal .form-group { margin-bottom: 14px; }
+.modal .form-group label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 0.9rem; }
+.modal .form-group input, .modal .form-group select, .modal .form-group textarea { width: 100%; }
+.modal .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+@media (max-width: 900px) {
+  .board, .kanban { grid-template-columns: 1fr; }
+  main { padding: 16px; }
+}

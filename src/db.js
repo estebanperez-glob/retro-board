@@ -1,0 +1,94 @@
+require('dotenv').config(); // loads .env from the project root (local dev convenience)
+
+const { Pool } = require('pg');
+
+// Neon / Postgres connection — DATABASE_URL is required
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL is required (e.g. postgres://user:pass@host/db?sslmode=require)');
+  process.exit(1);
+}
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }, // required by Neon
+});
+
+const SCHEMA = `
+CREATE TABLE IF NOT EXISTS retros (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  sprint TEXT,
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
+  status TEXT NOT NULL DEFAULT 'open'
+);
+
+CREATE TABLE IF NOT EXISTS participants (
+  id SERIAL PRIMARY KEY,
+  retro_id INTEGER NOT NULL REFERENCES retros(id),
+  name TEXT NOT NULL,
+  joined_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
+  UNIQUE(retro_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS cards (
+  id SERIAL PRIMARY KEY,
+  retro_id INTEGER NOT NULL REFERENCES retros(id),
+  column_type TEXT NOT NULL,
+  content TEXT NOT NULL,
+  author TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'))
+);
+
+CREATE TABLE IF NOT EXISTS votes (
+  id SERIAL PRIMARY KEY,
+  card_id INTEGER NOT NULL REFERENCES cards(id),
+  voter TEXT NOT NULL,
+  retro_id INTEGER NOT NULL REFERENCES retros(id),
+  UNIQUE(card_id, voter)
+);
+
+CREATE TABLE IF NOT EXISTS commitments (
+  id SERIAL PRIMARY KEY,
+  retro_id INTEGER NOT NULL REFERENCES retros(id),
+  description TEXT NOT NULL,
+  assignee TEXT NOT NULL,
+  due_date TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
+  completed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS points (
+  id SERIAL PRIMARY KEY,
+  participant_name TEXT NOT NULL,
+  retro_id INTEGER NOT NULL REFERENCES retros(id),
+  commitment_id INTEGER REFERENCES commitments(id),
+  amount INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'))
+);
+`;
+
+async function initSchema() {
+  await pool.query(SCHEMA);
+}
+
+// Query helper: returns rows array (like better-sqlite3 .all())
+async function all(sql, params = []) {
+  const res = await pool.query(sql, params);
+  return res.rows;
+}
+
+// Query helper: returns single row or undefined (like .get())
+async function get(sql, params = []) {
+  const rows = await all(sql, params);
+  return rows[0];
+}
+
+// Query helper: returns { lastInsertRowid } for INSERTs (like SQLite)
+async function run(sql, params = []) {
+  const res = await pool.query(sql, params);
+  return { lastInsertRowid: res.rows[0]?.id ?? null, rowCount: res.rowCount };
+}
+
+module.exports = { pool, initSchema, all, get, run };

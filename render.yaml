@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: retro-board
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/retros
+    envVars:
+      - key: DATABASE_URL
+        sync: false # set this in the Render dashboard: your Neon connection string
