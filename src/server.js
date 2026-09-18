@@ -45,11 +45,35 @@ app.get('/api/retros', ah(async (req, res) => {
 }));
 
 app.post('/api/retros', ah(async (req, res) => {
-  const { title, sprint } = req.body;
+  const { title, sprint, carry_over_from } = req.body;
   if (!title) return res.status(400).json({ error: 'Title is required' });
   const info = await db.run(
     'INSERT INTO retros (title, sprint) VALUES ($1, $2) RETURNING id', [title, sprint || null]);
-  res.status(201).json({ id: info.lastInsertRowid, title, sprint: sprint || null });
+  const retroId = Number(info.lastInsertRowid);
+
+  // Carry-over: copy pending commitments from a previous retro into this one
+  if (carry_over_from) {
+    const source = await db.get('SELECT id FROM retros WHERE id = $1', [carry_over_from]);
+    if (source) {
+      const pending = await db.all(
+        "SELECT description, assignee, due_date FROM commitments WHERE retro_id = $1 AND status != 'done'",
+        [carry_over_from]);
+      for (const cm of pending) {
+        await db.run(
+          'INSERT INTO commitments (retro_id, description, assignee, due_date) VALUES ($1, $2, $3, $4)',
+          [retroId, cm.description, cm.assignee, cm.due_date]);
+      }
+    }
+  }
+  res.status(201).json({ id: retroId, title, sprint: sprint || null });
+}));
+
+// Pending commitments of a retro (for the carry-over offer in the home page)
+app.get('/api/retros/:id/pending-commitments', ah(async (req, res) => {
+  const rows = await db.all(
+    "SELECT id, description, assignee, due_date FROM commitments WHERE retro_id = $1 AND status != 'done' ORDER BY created_at",
+    [req.params.id]);
+  res.json(rows);
 }));
 
 app.get('/api/retros/:id', ah(async (req, res) => {
@@ -61,6 +85,12 @@ app.get('/api/retros/:id', ah(async (req, res) => {
 app.post('/api/retros/:id/close', ah(async (req, res) => {
   await db.run("UPDATE retros SET status = 'closed' WHERE id = $1", [req.params.id]);
   broadcast(req.params.id, 'retro_closed', {});
+  res.json({ ok: true });
+}));
+
+app.post('/api/retros/:id/reopen', ah(async (req, res) => {
+  await db.run("UPDATE retros SET status = 'open' WHERE id = $1", [req.params.id]);
+  broadcast(req.params.id, 'retro_reopened', {});
   res.json({ ok: true });
 }));
 
@@ -124,6 +154,8 @@ app.delete('/api/cards/:id', ah(async (req, res) => {
 }));
 
 // --- Votes ---
+const MAX_VOTES_PER_VOTER = 3;
+
 app.post('/api/cards/:id/vote', ah(async (req, res) => {
   const { voter } = req.body;
   const card = await db.get('SELECT * FROM cards WHERE id = $1', [req.params.id]);
@@ -132,12 +164,26 @@ app.post('/api/cards/:id/vote', ah(async (req, res) => {
   if (existing) {
     await db.run('DELETE FROM votes WHERE id = $1', [existing.id]);
   } else {
+    // Enforce per-voter vote limit within this retro
+    const used = Number((await db.get(
+      'SELECT COUNT(*) AS n FROM votes WHERE retro_id = $1 AND voter = $2', [card.retro_id, voter])).n);
+    if (used >= MAX_VOTES_PER_VOTER) {
+      return res.status(400).json({ error: `Vote limit reached (${MAX_VOTES_PER_VOTER} per person). Remove a vote first.` });
+    }
     await db.run('INSERT INTO votes (card_id, voter, retro_id) VALUES ($1, $2, $3)',
       [req.params.id, voter, card.retro_id]);
   }
   const votes = Number((await db.get('SELECT COUNT(*) AS n FROM votes WHERE card_id = $1', [req.params.id])).n);
   broadcast(card.retro_id, 'votes_changed', { cardId: Number(req.params.id), votes });
   res.json({ votes });
+}));
+
+// Votes cast by a voter in a retro (for the frontend counter)
+app.get('/api/retros/:id/votes-used', ah(async (req, res) => {
+  const { voter } = req.query;
+  if (!voter) return res.status(400).json({ error: 'voter is required' });
+  const row = await db.get('SELECT COUNT(*) AS n FROM votes WHERE retro_id = $1 AND voter = $2', [req.params.id, voter]);
+  res.json({ used: Number(row.n), max: MAX_VOTES_PER_VOTER });
 }));
 
 // --- Commitments ---

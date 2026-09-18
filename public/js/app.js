@@ -30,7 +30,7 @@ function esc(text) {
 }
 
 // ---------- Home ----------
-function renderHome() {
+async function renderHome() {
   app.innerHTML = `
     <div class="home-hero">
       <h2>Make your retros fun and actionable 🎉</h2>
@@ -48,13 +48,35 @@ function renderHome() {
   document.getElementById('create-retro').onclick = async () => {
     const title = document.getElementById('retro-title').value.trim();
     if (!title) return toast('Please enter a title', 'points');
-    const retro = await api('/retros', { method: 'POST', body: JSON.stringify({ title, sprint: document.getElementById('retro-sprint').value.trim() }) });
-    location.href = `/retro.html?id=${retro.id}`;
+    const sprint = document.getElementById('retro-sprint').value.trim();
+    await createRetroWithCarryOver(title, sprint);
   };
   document.getElementById('join-retro').onclick = () => {
     const id = document.getElementById('join-id').value.trim();
     if (id) location.href = `/retro.html?id=${id}`;
   };
+}
+
+// Create a retro; if the previous retro has pending commitments, offer to carry them over
+async function createRetroWithCarryOver(title, sprint) {
+  const retros = await api('/retros');
+  const previous = retros.find(r => r.status === 'open' && r.card_count > 0);
+  let carry_over_from = null;
+  if (previous) {
+    const pending = await api(`/retros/${previous.id}/pending-commitments`);
+    if (pending.length > 0) {
+      const list = pending.map(cm => `• ${cm.description} — ${cm.assignee}`).join('\n');
+      const ok = confirm(
+        `The retro "${previous.title}" has ${pending.length} pending commitment(s):\n\n${list}\n\n` +
+        `Import them into the new retro?`);
+      if (ok) carry_over_from = previous.id;
+    }
+  }
+  const retro = await api('/retros', {
+    method: 'POST',
+    body: JSON.stringify({ title, sprint, carry_over_from }),
+  });
+  location.href = `/retro.html?id=${retro.id}`;
 }
 
 // ---------- Retro board ----------
@@ -72,7 +94,11 @@ async function renderRetro() {
       <h2>${esc(retro.title)} ${retro.status === 'closed' ? '✅' : '🟢'}</h2>
       <p class="muted">You are <strong>${esc(currentUser)}</strong> — share this URL with your team: <code>${location.href}</code></p>
       <div class="participants-bar" id="participants-bar"></div>
-      <button class="btn small secondary" id="close-retro" ${retro.status === 'closed' ? 'disabled' : ''}>Close Retro</button>
+      <div style="margin-top:8px">
+        <button class="btn small secondary" id="close-retro" ${retro.status === 'closed' ? 'disabled' : ''}>Close Retro</button>
+        <button class="btn small secondary" id="reopen-retro" ${retro.status === 'open' ? 'disabled' : ''}>Reopen Retro</button>
+        <span class="muted" id="votes-counter" style="margin-left:8px"></span>
+      </div>
     </div>
     <div class="board" id="board"></div>
     <h2 style="margin-top:40px">📋 Commitments</h2>
@@ -151,7 +177,13 @@ function renderBoard(cards) {
   });
 
   board.querySelectorAll('.vote-btn').forEach(btn => {
-    btn.onclick = () => api(`/cards/${btn.dataset.id}/vote`, { method: 'POST', body: JSON.stringify({ voter: currentUser }) });
+    btn.onclick = async () => {
+      try {
+        await api(`/cards/${btn.dataset.id}/vote`, { method: 'POST', body: JSON.stringify({ voter: currentUser }) });
+      } catch (err) {
+        toast(err.message, 'points');
+      }
+    };
   });
   board.querySelectorAll('.delete-btn').forEach(btn => {
     btn.onclick = () => api(`/cards/${btn.dataset.id}`, { method: 'DELETE' });
@@ -296,6 +328,7 @@ function handleLiveEvent(event, payload) {
     case 'votes_changed': {
       const btn = document.querySelector(`.vote-btn[data-id="${payload.cardId}"]`);
       if (btn) btn.innerHTML = `👍 ${payload.votes}`;
+      refreshVotesCounter();
       break;
     }
     case 'commitment_added':
@@ -312,6 +345,9 @@ function handleLiveEvent(event, payload) {
     case 'retro_closed':
       toast('This retro has been closed ✅');
       break;
+    case 'retro_reopened':
+      toast('This retro has been reopened 🟢');
+      break;
   }
 }
 
@@ -326,6 +362,15 @@ async function refreshParticipants() {
 }
 
 // ---------- Retro actions ----------
+async function refreshVotesCounter() {
+  const el = document.getElementById('votes-counter');
+  if (!el) return;
+  try {
+    const { used, max } = await api(`/retros/${currentRetroId}/votes-used?voter=${encodeURIComponent(currentUser)}`);
+    el.textContent = `👍 ${used}/${max} votes used`;
+  } catch { /* counter is non-critical */ }
+}
+
 function wireRetroEvents() {
   document.getElementById('close-retro').onclick = async () => {
     if (confirm('Close this retro? It will move to History.')) {
@@ -333,7 +378,12 @@ function wireRetroEvents() {
       toast('Retro closed ✅');
     }
   };
+  document.getElementById('reopen-retro').onclick = async () => {
+    await api(`/retros/${currentRetroId}/reopen`, { method: 'POST' });
+    toast('Retro reopened 🟢');
+  };
   document.getElementById('add-commitment').onclick = () => openCommitmentModal();
+  refreshVotesCounter();
 }
 
 // ---------- Router ----------
