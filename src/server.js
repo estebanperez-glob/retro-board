@@ -38,6 +38,32 @@ async function getUser(req) {
   return row || null;
 }
 
+// Resolves a retro participant from the X-Participant-Token header (or null).
+// Participants join with the retro's invitation link and get their own token.
+async function getParticipant(req, retroId) {
+  const token = req.headers['x-participant-token'];
+  if (!token) return null;
+  return db.get(
+    'SELECT id, name FROM participants WHERE access_token = $1 AND retro_id = $2',
+    [token, retroId]) || null;
+}
+
+// Access check for retro content: the admin (logged-in creator) or a member
+// (participant with valid token). Responds 401/403 and returns null when denied.
+async function requireRetroAccess(req, res, retro) {
+  if (!retro) { res.status(404).json({ error: 'Retro not found' }); return null; }
+  const user = await getUser(req);
+  if (user && user.username === retro.created_by) return { role: 'admin', name: user.username };
+  const participant = await getParticipant(req, retro.id);
+  if (participant) return { role: 'participant', name: participant.name };
+  if (!user && !participant) {
+    res.status(401).json({ error: 'Access denied: join this retro with its invitation link or log in as its admin' });
+  } else {
+    res.status(403).json({ error: 'You are not a member of this retro' });
+  }
+  return null;
+}
+
 // Async route wrapper: forwards errors to Express error handler
 const ah = fn => (req, res, next) => fn(req, res, next).catch(next);
 
