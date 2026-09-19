@@ -1,3 +1,4 @@
+// Leaderboard page — public gamification view
 async function loadLeaderboard() {
   const res = await fetch('/api/leaderboard');
   const rows = await res.json();
@@ -7,12 +8,12 @@ async function loadLeaderboard() {
     return;
   }
   const medals = ['🥇', '🥈', '🥉'];
-  tbody.innerHTML = rows.map((r, i) => `
+  tbody.innerHTML = rows.map((row, i) => `
     <tr>
-      <td>${medals[i] || i + 1}</td>
-      <td>${r.participant_name}</td>
-      <td>${r.total_points}</td>
-      <td>${r.completed_commitments}</td>
+      <td>${medals[i] || `#${i + 1}`}</td>
+      <td>👤 ${Auth.esc(row.participant_name)}</td>
+      <td><strong>${row.total_points}</strong></td>
+      <td>${row.completed_commitments}</td>
     </tr>`).join('');
 }
 loadLeaderboard();

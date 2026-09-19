@@ -271,3 +271,47 @@ tr:first-child td { font-weight: bold; color: var(--yellow); }
   .board, .kanban { grid-template-columns: 1fr; }
   main { padding: 16px; }
 }
+
+/* Auth modal + nav user */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.modal {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 28px; width: min(420px, 92vw);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.modal h3 { margin-top: 0; }
+.modal-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 20px; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; }
+.form-group input, .form-group textarea {
+  width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px;
+  border: 1px solid var(--muted); background: var(--surface-2); color: var(--text);
+}
+.nav-user { color: var(--muted); margin-right: 8px; }
+header nav { display: flex; gap: 16px; align-items: center; }
+header nav a { color: var(--text); text-decoration: none; font-weight: 500; }
+header nav a:hover { color: var(--accent); }
+
+/* Invitation link box (admin) */
+.invite-box {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--surface-2); border: 1px dashed var(--muted);
+  border-radius: 8px; padding: 8px 12px; margin: 8px 0; font-size: 0.85rem;
+}
+.invite-box code { background: transparent; color: var(--accent); word-break: break-all; }
+
+/* Auth-required block (history) */
+.auth-required {
+  text-align: center; background: var(--surface); border-radius: var(--radius);
+  padding: 40px 24px; margin-top: 24px;
+}
+
+/* Participants chips */
+.participants-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.participant-chip {
+  background: var(--surface-2); border-radius: 999px; padding: 4px 12px;
+  font-size: 0.8rem; color: var(--muted);
+}

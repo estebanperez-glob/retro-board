@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS participants (
   retro_id INTEGER NOT NULL REFERENCES retros(id),
   name TEXT NOT NULL,
   joined_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
+  access_token TEXT UNIQUE,
   UNIQUE(retro_id, name)
 );
 
@@ -92,6 +93,11 @@ async function initSchema() {
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS created_by TEXT',
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS template TEXT NOT NULL DEFAULT \'classic\'',
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN NOT NULL DEFAULT FALSE',
+    'ALTER TABLE retros ADD COLUMN IF NOT EXISTS join_code TEXT',
+    'ALTER TABLE participants ADD COLUMN IF NOT EXISTS access_token TEXT',
+    // Backfill: generate join codes and participant tokens for existing rows
+    `UPDATE retros SET join_code = substr(md5(random()::text || clock_timestamp()::text), 1, 10) WHERE join_code IS NULL`,
+    `UPDATE participants SET access_token = md5(random()::text || clock_timestamp()::text || id::text) WHERE access_token IS NULL`,
   ];
   for (const sql of migrations) {
     await pool.query(sql);

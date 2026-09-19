@@ -93,9 +93,27 @@ function broadcast(retroId, event, payload) {
   }
 }
 
-wss.on('connection', (ws, req) => {
-  const retroId = Number(new URL(req.url, 'http://x').searchParams.get('retroId'));
+wss.on('connection', async (ws, req) => {
+  const url = new URL(req.url, 'http://x');
+  const retroId = Number(url.searchParams.get('retroId'));
   if (!retroId) { ws.close(); return; }
+  // Only retro members (admin or participants with their token) can listen
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [retroId]);
+  if (!retro) { ws.close(); return; }
+  const userToken = url.searchParams.get('userToken');
+  const participantToken = url.searchParams.get('participantToken');
+  let allowed = false;
+  if (userToken) {
+    const row = await db.get(
+      'SELECT u.username FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = $1', [userToken]);
+    allowed = !!row && row.username === retro.created_by;
+  }
+  if (!allowed && participantToken) {
+    const row = await db.get(
+      'SELECT id FROM participants WHERE access_token = $1 AND retro_id = $2', [participantToken, retroId]);
+    allowed = !!row;
+  }
+  if (!allowed) { ws.close(); return; }
   if (!rooms.has(retroId)) rooms.set(retroId, new Set());
   rooms.get(retroId).add(ws);
   ws.on('close', () => rooms.get(retroId)?.delete(ws));
@@ -103,11 +121,16 @@ wss.on('connection', (ws, req) => {
 
 // --- Retros ---
 app.get('/api/retros', ah(async (req, res) => {
+  // History list: only for logged-in users (retro admins)
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Log in to see your retros' });
   const retros = await db.all(`
     SELECT r.*,
       (SELECT COUNT(*) FROM cards c WHERE c.retro_id = r.id) AS card_count,
       (SELECT COUNT(*) FROM commitments cm WHERE cm.retro_id = r.id) AS commitment_count
-    FROM retros r ORDER BY r.created_at DESC`);
+    FROM retros r
+    WHERE r.created_by = $1
+    ORDER BY r.created_at DESC`, [user.username]);
   res.json(retros);
 }));
 
@@ -115,12 +138,20 @@ app.post('/api/retros', ah(async (req, res) => {
   const { title, sprint, carry_over_from, template, is_anonymous } = req.body;
   if (!title) return res.status(400).json({ error: 'Title is required' });
   const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Log in to create a retro' });
   const validTemplates = ['classic', 'ssc', 'msg', '4ls'];
   const tpl = validTemplates.includes(template) ? template : 'classic';
+  const joinCode = crypto.randomBytes(5).toString('hex'); // 10-char invitation code
   const info = await db.run(
-    'INSERT INTO retros (title, sprint, created_by, template, is_anonymous) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-    [title, sprint || null, user ? user.username : null, tpl, !!is_anonymous]);
+    'INSERT INTO retros (title, sprint, created_by, template, is_anonymous, join_code) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+    [title, sprint || null, user.username, tpl, !!is_anonymous, joinCode]);
   const retroId = Number(info.lastInsertRowid);
+
+  // The admin automatically becomes a member so they can add cards and vote
+  const adminToken = crypto.randomBytes(24).toString('hex');
+  await db.run(
+    'INSERT INTO participants (retro_id, name, access_token) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+    [retroId, user.username, adminToken]);
 
   // Carry-over: copy pending commitments from a previous retro into this one
   if (carry_over_from) {
@@ -136,22 +167,31 @@ app.post('/api/retros', ah(async (req, res) => {
       }
     }
   }
-  res.status(201).json({ id: retroId, title, sprint: sprint || null });
+  res.status(201).json({ id: retroId, title, sprint: sprint || null, join_code: joinCode, participant_token: adminToken });
 }));
 
 // Pending commitments of a retro (for the carry-over offer in the home page)
 app.get('/api/retros/:id/pending-commitments', ah(async (req, res) => {
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
+  if (!(await requireRetroAccess(req, res, retro))) return;
   const rows = await db.all(
     "SELECT id, description, assignee, due_date FROM commitments WHERE retro_id = $1 AND status != 'done' ORDER BY created_at",
     [req.params.id]);
   res.json(rows);
 }));
 
+// Public preview: minimal info so the join screen can show what you're joining
+app.get('/api/retros/:id/preview', ah(async (req, res) => {
+  const retro = await db.get('SELECT id, title, sprint, status, template, is_anonymous, created_by FROM retros WHERE id = $1', [req.params.id]);
+  if (!retro) return res.status(404).json({ error: 'Retro not found' });
+  res.json(retro);
+}));
+
 app.get('/api/retros/:id', ah(async (req, res) => {
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
-  if (!retro) return res.status(404).json({ error: 'Retro not found' });
-  const user = await getUser(req);
-  res.json({ ...retro, is_admin: !!user && user.username === retro.created_by });
+  const access = await requireRetroAccess(req, res, retro);
+  if (!access) return;
+  res.json({ ...retro, join_code: undefined, is_admin: access.role === 'admin' });
 }));
 
 // Only the retro's creator (admin) can close, reopen or delete it
@@ -195,16 +235,30 @@ app.delete('/api/retros/:id', ah(async (req, res) => {
 
 // --- Participants ---
 app.post('/api/retros/:id/join', ah(async (req, res) => {
-  const { name } = req.body;
+  const { name, join_code } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
+  if (!retro) return res.status(404).json({ error: 'Retro not found' });
+  if (!join_code || join_code.trim().toLowerCase() !== (retro.join_code || '').toLowerCase()) {
+    return res.status(403).json({ error: 'Invalid invitation code. Ask the retro admin for the link.' });
+  }
+  const trimmed = name.trim();
+  // Re-join: if the name already exists, hand back the existing token
+  const existing = await db.get('SELECT access_token FROM participants WHERE retro_id = $1 AND name = $2', [retro.id, trimmed]);
+  if (existing) {
+    return res.json({ ok: true, name: trimmed, access_token: existing.access_token });
+  }
+  const accessToken = crypto.randomBytes(24).toString('hex');
   await db.run(
-    'INSERT INTO participants (retro_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-    [req.params.id, name.trim()]);
-  broadcast(req.params.id, 'participants_changed', {});
-  res.json({ ok: true });
+    'INSERT INTO participants (retro_id, name, access_token) VALUES ($1, $2, $3)',
+    [retro.id, trimmed, accessToken]);
+  broadcast(retro.id, 'participants_changed', {});
+  res.json({ ok: true, name: trimmed, access_token: accessToken });
 }));
 
 app.get('/api/retros/:id/participants', ah(async (req, res) => {
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
+  if (!(await requireRetroAccess(req, res, retro))) return;
   const rows = await db.all(
     'SELECT name, joined_at FROM participants WHERE retro_id = $1 ORDER BY joined_at', [req.params.id]);
   res.json(rows);
@@ -221,7 +275,7 @@ const TEMPLATE_COLUMNS = {
 
 app.get('/api/retros/:id/cards', ah(async (req, res) => {
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
-  if (!retro) return res.status(404).json({ error: 'Retro not found' });
+  if (!(await requireRetroAccess(req, res, retro))) return;
   const cards = await db.all(`
     SELECT c.*, (SELECT COUNT(*) FROM votes v WHERE v.card_id = c.id) AS votes
     FROM cards c WHERE c.retro_id = $1 ORDER BY c.created_at`, [req.params.id]);
@@ -235,7 +289,8 @@ app.get('/api/retros/:id/cards', ah(async (req, res) => {
 app.post('/api/retros/:id/cards', ah(async (req, res) => {
   const { column_type, content, author } = req.body;
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
-  if (!retro) return res.status(404).json({ error: 'Retro not found' });
+  const access = await requireRetroAccess(req, res, retro);
+  if (!access) return;
   const validColumns = TEMPLATE_COLUMNS[retro.template] || TEMPLATE_COLUMNS.classic;
   if (!validColumns.includes(column_type))
     return res.status(400).json({ error: 'Invalid column' });
@@ -253,6 +308,8 @@ app.put('/api/cards/:id', ah(async (req, res) => {
   const { content } = req.body;
   const card = await db.get('SELECT * FROM cards WHERE id = $1', [req.params.id]);
   if (!card) return res.status(404).json({ error: 'Card not found' });
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [card.retro_id]);
+  if (!(await requireRetroAccess(req, res, retro))) return;
   await db.run('UPDATE cards SET content = $1 WHERE id = $2', [content.trim(), req.params.id]);
   const updated = await db.get(`
     SELECT c.*, (SELECT COUNT(*) FROM votes v WHERE v.card_id = c.id) AS votes FROM cards c WHERE c.id = $1`,
@@ -264,6 +321,8 @@ app.put('/api/cards/:id', ah(async (req, res) => {
 app.delete('/api/cards/:id', ah(async (req, res) => {
   const card = await db.get('SELECT * FROM cards WHERE id = $1', [req.params.id]);
   if (!card) return res.status(404).json({ error: 'Card not found' });
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [card.retro_id]);
+  if (!(await requireRetroAccess(req, res, retro))) return;
   await db.run('DELETE FROM votes WHERE card_id = $1', [req.params.id]);
   await db.run('DELETE FROM cards WHERE id = $1', [req.params.id]);
   broadcast(card.retro_id, 'card_deleted', { id: Number(req.params.id) });
@@ -277,6 +336,8 @@ app.post('/api/cards/:id/vote', ah(async (req, res) => {
   const { voter } = req.body;
   const card = await db.get('SELECT * FROM cards WHERE id = $1', [req.params.id]);
   if (!card) return res.status(404).json({ error: 'Card not found' });
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [card.retro_id]);
+  if (!(await requireRetroAccess(req, res, retro))) return;
   const existing = await db.get('SELECT id FROM votes WHERE card_id = $1 AND voter = $2', [req.params.id, voter]);
   if (existing) {
     await db.run('DELETE FROM votes WHERE id = $1', [existing.id]);
@@ -297,6 +358,8 @@ app.post('/api/cards/:id/vote', ah(async (req, res) => {
 
 // Votes cast by a voter in a retro (for the frontend counter)
 app.get('/api/retros/:id/votes-used', ah(async (req, res) => {
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
+  if (!(await requireRetroAccess(req, res, retro))) return;
   const { voter } = req.query;
   if (!voter) return res.status(400).json({ error: 'voter is required' });
   const row = await db.get('SELECT COUNT(*) AS n FROM votes WHERE retro_id = $1 AND voter = $2', [req.params.id, voter]);
@@ -305,6 +368,8 @@ app.get('/api/retros/:id/votes-used', ah(async (req, res) => {
 
 // --- Commitments ---
 app.get('/api/retros/:id/commitments', ah(async (req, res) => {
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
+  if (!(await requireRetroAccess(req, res, retro))) return;
   const rows = await db.all(
     'SELECT * FROM commitments WHERE retro_id = $1 ORDER BY created_at', [req.params.id]);
   res.json(rows);
@@ -312,6 +377,8 @@ app.get('/api/retros/:id/commitments', ah(async (req, res) => {
 
 app.post('/api/retros/:id/commitments', ah(async (req, res) => {
   const { description, assignee, due_date } = req.body;
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
+  if (!(await requireRetroAccess(req, res, retro))) return;
   if (!description || !assignee) return res.status(400).json({ error: 'Description and assignee are required' });
   const info = await db.run(
     'INSERT INTO commitments (retro_id, description, assignee, due_date) VALUES ($1, $2, $3, $4) RETURNING id',
@@ -325,6 +392,8 @@ app.put('/api/commitments/:id', ah(async (req, res) => {
   const { description, assignee, due_date, status } = req.body;
   const commitment = await db.get('SELECT * FROM commitments WHERE id = $1', [req.params.id]);
   if (!commitment) return res.status(404).json({ error: 'Commitment not found' });
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [commitment.retro_id]);
+  if (!(await requireRetroAccess(req, res, retro))) return;
   await db.run(`UPDATE commitments SET description = $1, assignee = $2, due_date = $3, status = $4,
     completed_at = CASE WHEN status = 'done' AND completed_at IS NULL THEN to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') ELSE completed_at END
     WHERE id = $5`,
@@ -352,6 +421,8 @@ app.put('/api/commitments/:id', ah(async (req, res) => {
 app.delete('/api/commitments/:id', ah(async (req, res) => {
   const commitment = await db.get('SELECT * FROM commitments WHERE id = $1', [req.params.id]);
   if (!commitment) return res.status(404).json({ error: 'Commitment not found' });
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [commitment.retro_id]);
+  if (!(await requireRetroAccess(req, res, retro))) return;
   await db.run('DELETE FROM points WHERE commitment_id = $1', [req.params.id]);
   await db.run('DELETE FROM commitments WHERE id = $1', [req.params.id]);
   broadcast(commitment.retro_id, 'commitment_deleted', { id: Number(req.params.id) });
@@ -360,25 +431,30 @@ app.delete('/api/commitments/:id', ah(async (req, res) => {
 
 // --- Commitments dashboard: all pending/overdue commitments across retros ---
 app.get('/api/commitments-dashboard', ah(async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Log in to see the commitments dashboard' });
   const rows = await db.all(`
     SELECT cm.id, cm.description, cm.assignee, cm.due_date, cm.status, cm.retro_id,
       r.title AS retro_title, r.status AS retro_status,
       CASE WHEN cm.due_date IS NOT NULL AND cm.status != 'done' AND cm.due_date < to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD')
         THEN TRUE ELSE FALSE END AS is_overdue
     FROM commitments cm JOIN retros r ON r.id = cm.retro_id
-    WHERE cm.status != 'done'
-    ORDER BY is_overdue DESC, cm.due_date ASC NULLS LAST, cm.created_at ASC`);
+    WHERE cm.status != 'done' AND r.created_by = $1
+    ORDER BY is_overdue DESC, cm.due_date ASC NULLS LAST, cm.created_at ASC`, [user.username]);
   res.json(rows);
 }));
 
 // --- Evolution: completed commitments per retro (for the history chart) ---
 app.get('/api/evolution', ah(async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Log in to see the evolution chart' });
   const rows = await db.all(`
     SELECT r.id, r.title, r.sprint, r.created_at,
       COUNT(CASE WHEN cm.status = 'done' THEN 1 END) AS completed,
       COUNT(*) AS total
     FROM retros r LEFT JOIN commitments cm ON cm.retro_id = r.id
-    GROUP BY r.id ORDER BY r.created_at ASC`);
+    WHERE r.created_by = $1
+    GROUP BY r.id ORDER BY r.created_at ASC`, [user.username]);
   res.json(rows);
 }));
 
@@ -402,6 +478,9 @@ app.get('/api/retros/:id/leaderboard', ah(async (req, res) => {
 app.get('/api/retros/:id/acta', ah(async (req, res) => {
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
   if (!retro) return res.status(404).json({ error: 'Retro not found' });
+  // Accept the participant token via query param (download links can't set headers)
+  if (req.query.token) req.headers['x-participant-token'] = req.query.token;
+  if (!(await requireRetroAccess(req, res, retro))) return;
   const cards = await db.all(`
     SELECT c.*, (SELECT COUNT(*) FROM votes v WHERE v.card_id = c.id) AS votes
     FROM cards c WHERE c.retro_id = $1 ORDER BY votes DESC, c.created_at`, [req.params.id]);
