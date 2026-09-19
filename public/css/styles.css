@@ -207,6 +207,66 @@ tr:first-child td { font-weight: bold; color: var(--yellow); }
 .modal .form-group input, .modal .form-group select, .modal .form-group textarea { width: 100%; }
 .modal .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
 
+/* Nav auth area */
+.nav-user { color: var(--accent); font-weight: 600; margin-left: 24px; }
+.check-label {
+  display: flex; align-items: center; gap: 6px;
+  color: var(--muted); font-size: 0.9rem; cursor: pointer;
+}
+.check-label input { width: auto; }
+
+/* Commitments dashboard (home) */
+.dashboard {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin: 32px auto;
+  max-width: 900px;
+  text-align: left;
+}
+.dashboard-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px; flex-wrap: wrap; gap: 12px;
+}
+.dashboard h3 { margin: 16px 0 8px; }
+.dashboard .overdue-title { color: var(--red); }
+.badge {
+  background: var(--accent); color: white;
+  border-radius: 999px; padding: 2px 10px; font-size: 0.85rem;
+}
+.dash-item {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-left: 4px solid var(--green);
+}
+.dash-item.overdue { border-left-color: var(--red); }
+.dash-desc { margin-bottom: 6px; word-break: break-word; }
+.dash-meta { display: flex; gap: 16px; align-items: center; font-size: 0.85rem; color: var(--muted); flex-wrap: wrap; }
+.dash-meta .assignee { color: var(--accent); font-weight: 600; }
+.dash-item.overdue .due { color: var(--red); font-weight: bold; }
+.dash-retro { color: var(--muted); text-decoration: none; margin-left: auto; }
+.dash-retro:hover { color: var(--accent); }
+
+/* Evolution chart (history) */
+.evolution-chart {
+  display: flex; align-items: flex-end; gap: 16px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin: 24px 0 40px;
+  min-height: 180px;
+}
+.evo-bar-group { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+.evo-bars { display: flex; gap: 4px; align-items: flex-end; height: 120px; }
+.evo-bar { width: 18px; border-radius: 4px 4px 0 0; }
+.evo-bar.completed { background: var(--green); }
+.evo-bar.pending { background: var(--surface-2); border: 1px solid var(--muted); }
+.evo-label { font-size: 0.75rem; color: var(--muted); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.evo-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 0.8rem; color: var(--muted); }
+.evo-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
+
 @media (max-width: 900px) {
   .board, .kanban { grid-template-columns: 1fr; }
   main { padding: 16px; }
