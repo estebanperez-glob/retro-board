@@ -87,6 +87,15 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 async function initSchema() {
   await pool.query(SCHEMA);
+  // Migrations: add columns to existing tables (CREATE TABLE IF NOT EXISTS won't)
+  const migrations = [
+    'ALTER TABLE retros ADD COLUMN IF NOT EXISTS created_by TEXT',
+    'ALTER TABLE retros ADD COLUMN IF NOT EXISTS template TEXT NOT NULL DEFAULT \'classic\'',
+    'ALTER TABLE retros ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN NOT NULL DEFAULT FALSE',
+  ];
+  for (const sql of migrations) {
+    await pool.query(sql);
+  }
 }
 
 // Query helper: returns rows array (like better-sqlite3 .all())
