@@ -27,9 +27,12 @@ const Auth = {
   renderNav() {
     const nav = document.querySelector('header nav');
     if (!nav) return;
+    const isGuest = sessionStorage.getItem('retroGuest') === '1' && !this.username;
     const authArea = this.username
-      ? `<span class="nav-user">👤 ${Auth.esc(this.username)}</span><a href="#" id="nav-logout">Logout</a>`
-      : `<a href="#" id="nav-login">Login / Register</a>`;
+      ? `<a href="/account.html">My Account</a><span class="nav-user">👤 ${Auth.esc(this.username)}</span><a href="#" id="nav-logout">Logout</a>`
+      : isGuest
+        ? `<span class="nav-user">👻 Guest</span><a href="#" id="nav-exit-guest">Exit guest mode</a><a href="#" id="nav-login">Login / Register</a>`
+        : `<a href="#" id="nav-login">Login / Register</a>`;
     nav.innerHTML = `
       <a href="/">Home</a>
       <a href="/history.html">History</a>
@@ -44,6 +47,12 @@ const Auth = {
       this.clear();
       location.href = '/';
     };
+    const exitGuestLink = document.getElementById('nav-exit-guest');
+    if (exitGuestLink) exitGuestLink.onclick = e => {
+      e.preventDefault();
+      sessionStorage.removeItem('retroGuest');
+      this.renderNav();
+    };
   },
   esc(text) {
     const div = document.createElement('div');
@@ -53,10 +62,11 @@ const Auth = {
   openAuthModal(mode = 'login') {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
+    const isLogin = mode === 'login';
     overlay.innerHTML = `
       <div class="modal" role="dialog" aria-modal="true">
         <button class="modal-close" aria-label="Close" title="Close">&times;</button>
-        <h3>${mode === 'login' ? 'Log In' : 'Create Account'}</h3>
+        <h3>${isLogin ? 'Log In' : 'Create Account'}</h3>
         <p class="muted" style="font-size:0.85rem">Admins log in to create and manage their own retro spaces. Participants don't need an account.</p>
         <div class="form-group">
           <label>Username</label>
@@ -64,12 +74,22 @@ const Auth = {
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" id="auth-pass" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}">
+          <input type="password" id="auth-pass" autocomplete="${isLogin ? 'current-password' : 'new-password'}">
         </div>
+        ${isLogin ? '' : `
+        <div class="form-group">
+          <label>Security question (to reset your password if you forget it)</label>
+          <input id="auth-secq" placeholder="e.g. What is my favorite color?">
+        </div>
+        <div class="form-group">
+          <label>Security answer</label>
+          <input id="auth-seca" autocomplete="off">
+        </div>`}
         <div class="modal-actions">
-          <button class="btn secondary" id="auth-switch">${mode === 'login' ? 'Need an account? Register' : 'Have an account? Log in'}</button>
-          <button class="btn" id="auth-go">${mode === 'login' ? 'Log In' : 'Register'}</button>
+          <button class="btn secondary" id="auth-switch">${isLogin ? 'Need an account? Register' : 'Have an account? Log in'}</button>
+          <button class="btn" id="auth-go">${isLogin ? 'Log In' : 'Register'}</button>
         </div>
+        ${isLogin ? '<p class="muted" style="text-align:center;margin-top:12px"><a href="#" id="auth-forgot" style="color:var(--accent)">Forgot your password?</a> · <a href="#" id="auth-guest" style="color:var(--accent)">Continue as guest</a></p>' : ''}
       </div>`;
     document.body.appendChild(overlay);
     const close = () => overlay.remove();
@@ -85,15 +105,35 @@ const Auth = {
       this.openAuthModal(mode === 'login' ? 'register' : 'login');
     };
     overlay.querySelector('#auth-user').focus();
+    const forgotLink = overlay.querySelector('#auth-forgot');
+    if (forgotLink) forgotLink.onclick = e => { e.preventDefault(); close(); this.openForgotModal(); };
+    const guestLink = overlay.querySelector('#auth-guest');
+    if (guestLink) guestLink.onclick = e => {
+      e.preventDefault();
+      close();
+      sessionStorage.setItem('retroGuest', '1');
+      this.renderNav();
+      location.reload();
+    };
     const submit = async () => {
       const username = overlay.querySelector('#auth-user').value.trim();
       const password = overlay.querySelector('#auth-pass').value;
       if (!username || !password) return alert('Username and password are required');
       try {
-        const result = await this.api(mode === 'login' ? '/login' : '/register', {
-          method: 'POST', body: JSON.stringify({ username, password }),
+        let body = { username, password };
+        if (!isLogin) {
+          const security_question = overlay.querySelector('#auth-secq').value.trim();
+          const security_answer = overlay.querySelector('#auth-seca').value.trim();
+          if (!security_question || !security_answer) {
+            return alert('Security question and answer are required (they let you recover your password)');
+          }
+          body = { ...body, security_question, security_answer };
+        }
+        const result = await this.api(isLogin ? '/login' : '/register', {
+          method: 'POST', body: JSON.stringify(body),
         });
         this.set(result.token, result.username);
+        sessionStorage.removeItem('retroGuest');
         overlay.remove();
         this.renderNav();
         location.reload();
@@ -103,6 +143,68 @@ const Auth = {
     };
     overlay.querySelector('#auth-go').onclick = submit;
     overlay.addEventListener('keydown', e => e.key === 'Enter' && submit());
+  },
+
+  openForgotModal() {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <button class="modal-close" aria-label="Close" title="Close">&times;</button>
+        <h3>Reset Password</h3>
+        <p class="muted" style="font-size:0.85rem">Step 1 of 2 — enter your username to see your security question.</p>
+        <div class="form-group">
+          <label>Username</label>
+          <input id="fp-user" autocomplete="username">
+        </div>
+        <div class="modal-actions">
+          <button class="btn secondary" id="fp-cancel">Cancel</button>
+          <button class="btn" id="fp-next">Next</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.querySelector('.modal-close').onclick = close;
+    overlay.querySelector('#fp-cancel').onclick = close;
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    overlay.querySelector('#fp-user').focus();
+    overlay.querySelector('#fp-next').onclick = async () => {
+      const username = overlay.querySelector('#fp-user').value.trim();
+      if (!username) return alert('Please enter your username');
+      try {
+        const { security_question } = await this.api(`/forgot-password/${encodeURIComponent(username)}`);
+        overlay.querySelector('.modal p.muted').textContent = 'Step 2 of 2 — answer your security question.';
+        overlay.querySelector('.form-group').outerHTML = `
+          <div class="form-group">
+            <label>${Auth.esc(security_question)}</label>
+            <input id="fp-answer" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>New password</label>
+            <input type="password" id="fp-newpass" autocomplete="new-password">
+          </div>`;
+        const nextBtn = overlay.querySelector('#fp-next');
+        nextBtn.textContent = 'Reset Password';
+        nextBtn.onclick = async () => {
+          const security_answer = overlay.querySelector('#fp-answer').value.trim();
+          const new_password = overlay.querySelector('#fp-newpass').value;
+          if (!security_answer || !new_password) return alert('Answer and new password are required');
+          try {
+            await this.api(`/forgot-password/${encodeURIComponent(username)}`, {
+              method: 'POST',
+              body: JSON.stringify({ security_answer, new_password }),
+            });
+            close();
+            alert('Password updated! You can now log in with your new password.');
+          } catch (err) {
+            alert(err.message);
+          }
+        };
+        overlay.querySelector('#fp-answer').focus();
+      } catch (err) {
+        alert(err.message);
+      }
+    };
   },
 };
 Auth.renderNav();

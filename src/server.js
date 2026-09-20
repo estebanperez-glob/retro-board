@@ -86,18 +86,46 @@ app.use('/api/commitments/:id', validateNumericId('id'));
 
 // --- Users ---
 app.post('/api/register', ah(async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, security_question, security_answer } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password are required' });
   if (username.trim().length < 3) return res.status(400).json({ error: 'Username must be at least 3 characters' });
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
   const existing = await db.get('SELECT id FROM users WHERE username = $1', [username.trim().toLowerCase()]);
   if (existing) return res.status(409).json({ error: 'Username already taken' });
   const info = await db.run(
-    'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id',
-    [username.trim().toLowerCase(), hashPassword(password)]);
+    'INSERT INTO users (username, password_hash, security_question, security_answer_hash) VALUES ($1, $2, $3, $4) RETURNING id',
+    [
+      username.trim().toLowerCase(),
+      hashPassword(password),
+      security_question ? String(security_question).trim() : null,
+      security_answer ? hashPassword(String(security_answer).trim().toLowerCase()) : null,
+    ]);
   const token = crypto.randomBytes(32).toString('hex');
   await db.run('INSERT INTO sessions (token, user_id) VALUES ($1, $2)', [token, Number(info.lastInsertRowid)]);
   res.status(201).json({ token, username: username.trim().toLowerCase() });
+}));
+
+// --- Password reset via security question (no email needed) ---
+app.get('/api/forgot-password/:username', ah(async (req, res) => {
+  const user = await db.get('SELECT security_question FROM users WHERE username = $1', [req.params.username.trim().toLowerCase()]);
+  if (!user || !user.security_question) {
+    return res.status(404).json({ error: 'No security question found for this user' });
+  }
+  res.json({ security_question: user.security_question });
+}));
+
+app.post('/api/forgot-password/:username', ah(async (req, res) => {
+  const { security_answer, new_password } = req.body;
+  if (!security_answer || !new_password) return res.status(400).json({ error: 'Answer and new password are required' });
+  if (new_password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  const user = await db.get('SELECT id, security_answer_hash FROM users WHERE username = $1', [req.params.username.trim().toLowerCase()]);
+  if (!user || !user.security_answer_hash || !verifyPassword(String(security_answer).trim().toLowerCase(), user.security_answer_hash)) {
+    return res.status(401).json({ error: 'Incorrect answer to the security question' });
+  }
+  await db.run('UPDATE users SET password_hash = $1 WHERE id = $2', [hashPassword(new_password), user.id]);
+  // Invalidate all existing sessions for safety
+  await db.run('DELETE FROM sessions WHERE user_id = $1', [user.id]);
+  res.json({ ok: true });
 }));
 
 app.post('/api/login', ah(async (req, res) => {
@@ -122,6 +150,42 @@ app.post('/api/logout', ah(async (req, res) => {
 app.get('/api/me', ah(async (req, res) => {
   const user = await getUser(req);
   res.json({ user });
+}));
+
+// --- Account management (requires login) ---
+app.get('/api/account', ah(async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Login required' });
+  const row = await db.get('SELECT security_question FROM users WHERE id = $1', [user.id]);
+  res.json({ username: user.username, security_question: row?.security_question || null });
+}));
+
+app.put('/api/account/password', ah(async (req, res) => {
+  const { current_password, new_password } = req.body;
+  if (!current_password || !new_password) return res.status(400).json({ error: 'Current and new password are required' });
+  if (new_password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Login required' });
+  const row = await db.get('SELECT password_hash FROM users WHERE id = $1', [user.id]);
+  if (!row || !verifyPassword(current_password, row.password_hash)) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+  await db.run('UPDATE users SET password_hash = $1 WHERE id = $2', [hashPassword(new_password), user.id]);
+  res.json({ ok: true });
+}));
+
+app.put('/api/account/security-question', ah(async (req, res) => {
+  const { current_password, security_question, security_answer } = req.body;
+  if (!security_question || !security_answer) return res.status(400).json({ error: 'Question and answer are required' });
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Login required' });
+  const row = await db.get('SELECT password_hash FROM users WHERE id = $1', [user.id]);
+  if (!row || !verifyPassword(current_password, row.password_hash)) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+  await db.run('UPDATE users SET security_question = $1, security_answer_hash = $2 WHERE id = $3',
+    [String(security_question).trim(), hashPassword(String(security_answer).trim().toLowerCase()), user.id]);
+  res.json({ ok: true });
 }));
 
 // --- WebSocket: broadcast changes to all clients in a retro room ---

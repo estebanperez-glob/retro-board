@@ -95,6 +95,8 @@ async function initSchema() {
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN NOT NULL DEFAULT FALSE',
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS join_code TEXT',
     'ALTER TABLE participants ADD COLUMN IF NOT EXISTS access_token TEXT',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS security_question TEXT',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS security_answer_hash TEXT',
     // Backfill: generate join codes and participant tokens for existing rows
     `UPDATE retros SET join_code = substr(md5(random()::text || clock_timestamp()::text), 1, 10) WHERE join_code IS NULL`,
     `UPDATE participants SET access_token = md5(random()::text || clock_timestamp()::text || id::text) WHERE access_token IS NULL`,
