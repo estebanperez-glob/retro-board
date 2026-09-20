@@ -67,6 +67,23 @@ async function requireRetroAccess(req, res, retro) {
 // Async route wrapper: forwards errors to Express error handler
 const ah = fn => (req, res, next) => fn(req, res, next).catch(next);
 
+// Validate that :id route params are numeric retro/card/commitment IDs.
+// Non-numeric IDs (e.g. /retro.html?id=test) would otherwise hit Postgres
+// with an invalid integer and surface as a 500 "Internal server error".
+function validateNumericId(param = 'id') {
+  return (req, res, next) => {
+    const value = Number(req.params[param]);
+    if (!Number.isInteger(value) || value <= 0) {
+      return res.status(404).json({ error: 'Retro not found' });
+    }
+    req.params[param] = value;
+    next();
+  };
+}
+app.use('/api/retros/:id', validateNumericId('id'));
+app.use('/api/cards/:id', validateNumericId('id'));
+app.use('/api/commitments/:id', validateNumericId('id'));
+
 // --- Users ---
 app.post('/api/register', ah(async (req, res) => {
   const { username, password } = req.body;
