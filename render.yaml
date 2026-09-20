@@ -5,7 +5,7 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm start
-    healthCheckPath: /api/retros
+    healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
         sync: false # set this in the Render dashboard: your Neon connection string

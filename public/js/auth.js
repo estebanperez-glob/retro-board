@@ -59,6 +59,16 @@ const Auth = {
     div.textContent = text;
     return div.innerHTML;
   },
+
+  // Toast notification (shared; falls back to alert if no #toast element)
+  toast(message, cls = '') {
+    const el = document.getElementById('toast');
+    if (!el) { alert(message); return; }
+    el.textContent = message;
+    el.className = `toast ${cls}`;
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => el.classList.add('hidden'), 3500);
+  },
   openAuthModal(mode = 'login') {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -118,14 +128,14 @@ const Auth = {
     const submit = async () => {
       const username = overlay.querySelector('#auth-user').value.trim();
       const password = overlay.querySelector('#auth-pass').value;
-      if (!username || !password) return alert('Username and password are required');
+      if (!username || !password) return Auth.toast('Username and password are required');
       try {
         let body = { username, password };
         if (!isLogin) {
           const security_question = overlay.querySelector('#auth-secq').value.trim();
           const security_answer = overlay.querySelector('#auth-seca').value.trim();
           if (!security_question || !security_answer) {
-            return alert('Security question and answer are required (they let you recover your password)');
+            return Auth.toast('Security question and answer are required (they let you recover your password)');
           }
           body = { ...body, security_question, security_answer };
         }
@@ -138,7 +148,7 @@ const Auth = {
         this.renderNav();
         location.reload();
       } catch (err) {
-        alert(err.message);
+        Auth.toast(err.message);
       }
     };
     overlay.querySelector('#auth-go').onclick = submit;
@@ -170,7 +180,7 @@ const Auth = {
     overlay.querySelector('#fp-user').focus();
     overlay.querySelector('#fp-next').onclick = async () => {
       const username = overlay.querySelector('#fp-user').value.trim();
-      if (!username) return alert('Please enter your username');
+      if (!username) return Auth.toast('Please enter your username');
       try {
         const { security_question } = await this.api(`/forgot-password/${encodeURIComponent(username)}`);
         overlay.querySelector('.modal p.muted').textContent = 'Step 2 of 2 — answer your security question.';
@@ -188,21 +198,21 @@ const Auth = {
         nextBtn.onclick = async () => {
           const security_answer = overlay.querySelector('#fp-answer').value.trim();
           const new_password = overlay.querySelector('#fp-newpass').value;
-          if (!security_answer || !new_password) return alert('Answer and new password are required');
+          if (!security_answer || !new_password) return Auth.toast('Answer and new password are required');
           try {
             await this.api(`/forgot-password/${encodeURIComponent(username)}`, {
               method: 'POST',
               body: JSON.stringify({ security_answer, new_password }),
             });
             close();
-            alert('Password updated! You can now log in with your new password.');
+            Auth.toast('Password updated! You can now log in with your new password.');
           } catch (err) {
-            alert(err.message);
+            Auth.toast(err.message);
           }
         };
         overlay.querySelector('#fp-answer').focus();
       } catch (err) {
-        alert(err.message);
+        Auth.toast(err.message);
       }
     };
   },

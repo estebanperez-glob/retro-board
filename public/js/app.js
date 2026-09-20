@@ -115,6 +115,7 @@ async function createRetroWithCarryOver(title, sprint, template, is_anonymous) {
   });
   // Store the admin's participant token so they land directly in the board
   sessionStorage.setItem('retroParticipantToken', retro.participant_token);
+  sessionStorage.setItem('retroParticipantRetroId', String(retro.id));
   sessionStorage.setItem(`retroUser_${retro.id}`, Auth.username);
   location.href = `/retro.html?id=${retro.id}`;
 }
@@ -296,7 +297,8 @@ function renderBoard(cards, template) {
     <div class="column ${col}" data-col="${col}">
       <h3>${label}</h3>
       <div class="cards" data-col="${col}">
-        ${cards.filter(c => c.column_type === col).map(renderCard).join('')}
+        ${cards.filter(c => c.column_type === col).map(renderCard).join('') ||
+          '<p class="empty-column muted">No cards yet — be the first to add one! 🎨</p>'}
       </div>
       <div class="add-card-form">
         <textarea placeholder="Add a card..." data-col="${col}"></textarea>
@@ -471,17 +473,31 @@ function openCommitmentModal(existing = null) {
 }
 
 // ---------- WebSocket live sync ----------
+let wsReconnectDelay = 1000;
+let wsReconnectTimer = null;
+
 function connectWs() {
-  if (ws) ws.close();
+  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+  if (ws) { ws.onclose = null; ws.close(); }
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const query = new URLSearchParams({ retroId: currentRetroId });
   if (Auth.token) query.set('userToken', Auth.token);
   const participantToken = sessionStorage.getItem('retroParticipantToken');
   if (participantToken) query.set('participantToken', participantToken);
   ws = new WebSocket(`${proto}://${location.host}/ws?${query}`);
+  ws.onopen = () => { wsReconnectDelay = 1000; };
   ws.onmessage = e => {
     const { event, payload } = JSON.parse(e.data);
     handleLiveEvent(event, payload);
+  };
+  // Auto-reconnect with exponential backoff (Render free tier sleeps/restarts)
+  ws.onclose = () => {
+    if (wsReconnectTimer) return;
+    wsReconnectTimer = setTimeout(() => {
+      wsReconnectTimer = null;
+      connectWs();
+    }, wsReconnectDelay);
+    wsReconnectDelay = Math.min(wsReconnectDelay * 2, 30000);
   };
 }
 
@@ -517,9 +533,11 @@ function handleLiveEvent(event, payload) {
       break;
     case 'retro_closed':
       toast('This retro has been closed ✅');
+      renderRetro().catch(() => {});
       break;
     case 'retro_reopened':
       toast('This retro has been reopened 🟢');
+      renderRetro().catch(() => {});
       break;
     case 'retro_deleted':
       toast('This retro has been deleted by the admin', 'points');

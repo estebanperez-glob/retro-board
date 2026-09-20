@@ -72,18 +72,18 @@ async function renderAccount() {
     const current_password = document.getElementById('acc-curpass').value;
     const new_password = document.getElementById('acc-newpass').value;
     const repeat = document.getElementById('acc-newpass2').value;
-    if (!current_password || !new_password) return alert('Please fill in all fields');
-    if (new_password !== repeat) return alert('New passwords do not match');
+    if (!current_password || !new_password) return Auth.toast('Please fill in all fields');
+    if (new_password !== repeat) return Auth.toast('New passwords do not match');
     try {
       await Auth.api('/account/password', {
         method: 'PUT', body: JSON.stringify({ current_password, new_password }),
       });
-      alert('Password changed successfully ✅');
+      Auth.toast('Password changed successfully ✅');
       document.getElementById('acc-curpass').value = '';
       document.getElementById('acc-newpass').value = '';
       document.getElementById('acc-newpass2').value = '';
     } catch (err) {
-      alert(err.message);
+      Auth.toast(err.message);
     }
   };
 
@@ -92,17 +92,17 @@ async function renderAccount() {
     const security_question = document.getElementById('acc-secq').value.trim();
     const security_answer = document.getElementById('acc-seca').value.trim();
     if (!current_password || !security_question || !security_answer) {
-      return alert('Please fill in all fields');
+      return Auth.toast('Please fill in all fields');
     }
     try {
       await Auth.api('/account/security-question', {
         method: 'PUT',
         body: JSON.stringify({ current_password, security_question, security_answer }),
       });
-      alert('Security question updated ✅');
+      Auth.toast('Security question updated ✅');
       renderAccount();
     } catch (err) {
-      alert(err.message);
+      Auth.toast(err.message);
     }
   };
 }

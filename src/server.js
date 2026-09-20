@@ -27,13 +27,15 @@ function verifyPassword(password, stored) {
   return candidate.length === expected.length && crypto.timingSafeEqual(candidate, expected);
 }
 
-// Resolves the logged-in user from the Authorization header (or null)
+// Resolves the logged-in user from the Authorization header (or null).
+// Sessions expire after 30 days.
 async function getUser(req) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return null;
   const row = await db.get(
-    'SELECT u.id, u.username FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = $1',
+    `SELECT u.id, u.username FROM sessions s JOIN users u ON u.id = s.user_id
+     WHERE s.token = $1 AND s.created_at >= to_char(now() AT TIME ZONE 'UTC' - interval '30 days', 'YYYY-MM-DD HH24:MI:SS')`,
     [token]);
   return row || null;
 }
@@ -67,6 +69,34 @@ async function requireRetroAccess(req, res, retro) {
 // Async route wrapper: forwards errors to Express error handler
 const ah = fn => (req, res, next) => fn(req, res, next).catch(next);
 
+// Simple in-memory rate limiter (no external deps): max N requests per window per IP
+const rateBuckets = new Map();
+function rateLimit({ windowMs = 60000, max = 20 } = {}) {
+  return (req, res, next) => {
+    const key = req.ip || req.socket?.remoteAddress || 'unknown';
+    const now = Date.now();
+    const bucket = rateBuckets.get(key);
+    if (!bucket || now > bucket.resetAt) {
+      rateBuckets.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+    bucket.count += 1;
+    if (bucket.count > max) {
+      return res.status(429).json({ error: 'Too many requests — try again in a minute' });
+    }
+    next();
+  };
+}
+// Periodically clean expired buckets to avoid unbounded growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, bucket] of rateBuckets) {
+    if (now > bucket.resetAt) rateBuckets.delete(key);
+  }
+}, 5 * 60000).unref();
+
+const authRateLimit = rateLimit({ windowMs: 60000, max: 10 });
+
 // Validate that :id route params are numeric retro/card/commitment IDs.
 // Non-numeric IDs (e.g. /retro.html?id=test) would otherwise hit Postgres
 // with an invalid integer and surface as a 500 "Internal server error".
@@ -85,11 +115,13 @@ app.use('/api/cards/:id', validateNumericId('id'));
 app.use('/api/commitments/:id', validateNumericId('id'));
 
 // --- Users ---
-app.post('/api/register', ah(async (req, res) => {
+app.post('/api/register', authRateLimit, ah(async (req, res) => {
   const { username, password, security_question, security_answer } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password are required' });
   if (username.trim().length < 3) return res.status(400).json({ error: 'Username must be at least 3 characters' });
+  if (username.trim().length > 40) return res.status(400).json({ error: 'Username must be at most 40 characters' });
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (password.length > 100) return res.status(400).json({ error: 'Password must be at most 100 characters' });
   const existing = await db.get('SELECT id FROM users WHERE username = $1', [username.trim().toLowerCase()]);
   if (existing) return res.status(409).json({ error: 'Username already taken' });
   const info = await db.run(
@@ -114,7 +146,7 @@ app.get('/api/forgot-password/:username', ah(async (req, res) => {
   res.json({ security_question: user.security_question });
 }));
 
-app.post('/api/forgot-password/:username', ah(async (req, res) => {
+app.post('/api/forgot-password/:username', authRateLimit, ah(async (req, res) => {
   const { security_answer, new_password } = req.body;
   if (!security_answer || !new_password) return res.status(400).json({ error: 'Answer and new password are required' });
   if (new_password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
@@ -128,7 +160,7 @@ app.post('/api/forgot-password/:username', ah(async (req, res) => {
   res.json({ ok: true });
 }));
 
-app.post('/api/login', ah(async (req, res) => {
+app.post('/api/login', authRateLimit, ah(async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password are required' });
   const user = await db.get('SELECT id, password_hash FROM users WHERE username = $1', [username.trim().toLowerCase()]);
@@ -244,6 +276,7 @@ app.get('/api/retros', ah(async (req, res) => {
 app.post('/api/retros', ah(async (req, res) => {
   const { title, sprint, carry_over_from, template, is_anonymous } = req.body;
   if (!title) return res.status(400).json({ error: 'Title is required' });
+  if (String(title).trim().length > 100) return res.status(400).json({ error: 'Title must be at most 100 characters' });
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Log in to create a retro' });
   const validTemplates = ['classic', 'ssc', 'msg', '4ls'];
@@ -298,7 +331,7 @@ app.get('/api/retros/:id', ah(async (req, res) => {
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
   const access = await requireRetroAccess(req, res, retro);
   if (!access) return;
-  res.json({ ...retro, join_code: undefined, is_admin: access.role === 'admin' });
+  res.json({ ...retro, join_code: access.role === 'admin' ? retro.join_code : undefined, is_admin: access.role === 'admin' });
 }));
 
 // Only the retro's creator (admin) can close, reopen or delete it
@@ -394,14 +427,17 @@ app.get('/api/retros/:id/cards', ah(async (req, res) => {
 }));
 
 app.post('/api/retros/:id/cards', ah(async (req, res) => {
-  const { column_type, content, author } = req.body;
+  const { column_type, content } = req.body;
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
   const access = await requireRetroAccess(req, res, retro);
   if (!access) return;
   const validColumns = TEMPLATE_COLUMNS[retro.template] || TEMPLATE_COLUMNS.classic;
   if (!validColumns.includes(column_type))
     return res.status(400).json({ error: 'Invalid column' });
-  if (!content || !author) return res.status(400).json({ error: 'Content and author are required' });
+  if (!content) return res.status(400).json({ error: 'Content is required' });
+  if (String(content).trim().length > 500) return res.status(400).json({ error: 'Card content must be at most 500 characters' });
+  // The author identity comes from the authenticated access (token), never from the body
+  const author = access.name;
   const info = await db.run(
     'INSERT INTO cards (retro_id, column_type, content, author) VALUES ($1, $2, $3, $4) RETURNING id',
     [req.params.id, column_type, content.trim(), author]);
@@ -416,7 +452,12 @@ app.put('/api/cards/:id', ah(async (req, res) => {
   const card = await db.get('SELECT * FROM cards WHERE id = $1', [req.params.id]);
   if (!card) return res.status(404).json({ error: 'Card not found' });
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [card.retro_id]);
-  if (!(await requireRetroAccess(req, res, retro))) return;
+  const access = await requireRetroAccess(req, res, retro);
+  if (!access) return;
+  // Only the card's author or the retro admin can edit it
+  if (access.role !== 'admin' && card.author !== access.name) {
+    return res.status(403).json({ error: 'Only the card author or the retro admin can edit this card' });
+  }
   await db.run('UPDATE cards SET content = $1 WHERE id = $2', [content.trim(), req.params.id]);
   const updated = await db.get(`
     SELECT c.*, (SELECT COUNT(*) FROM votes v WHERE v.card_id = c.id) AS votes FROM cards c WHERE c.id = $1`,
@@ -429,7 +470,12 @@ app.delete('/api/cards/:id', ah(async (req, res) => {
   const card = await db.get('SELECT * FROM cards WHERE id = $1', [req.params.id]);
   if (!card) return res.status(404).json({ error: 'Card not found' });
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [card.retro_id]);
-  if (!(await requireRetroAccess(req, res, retro))) return;
+  const access = await requireRetroAccess(req, res, retro);
+  if (!access) return;
+  // Only the card's author or the retro admin can delete it
+  if (access.role !== 'admin' && card.author !== access.name) {
+    return res.status(403).json({ error: 'Only the card author or the retro admin can delete this card' });
+  }
   await db.run('DELETE FROM votes WHERE card_id = $1', [req.params.id]);
   await db.run('DELETE FROM cards WHERE id = $1', [req.params.id]);
   broadcast(card.retro_id, 'card_deleted', { id: Number(req.params.id) });
@@ -440,11 +486,13 @@ app.delete('/api/cards/:id', ah(async (req, res) => {
 const MAX_VOTES_PER_VOTER = 3;
 
 app.post('/api/cards/:id/vote', ah(async (req, res) => {
-  const { voter } = req.body;
   const card = await db.get('SELECT * FROM cards WHERE id = $1', [req.params.id]);
   if (!card) return res.status(404).json({ error: 'Card not found' });
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [card.retro_id]);
-  if (!(await requireRetroAccess(req, res, retro))) return;
+  const access = await requireRetroAccess(req, res, retro);
+  if (!access) return;
+  // The voter identity comes from the authenticated access (token), never from the body
+  const voter = access.name;
   const existing = await db.get('SELECT id FROM votes WHERE card_id = $1 AND voter = $2', [req.params.id, voter]);
   if (existing) {
     await db.run('DELETE FROM votes WHERE id = $1', [existing.id]);
@@ -500,12 +548,18 @@ app.put('/api/commitments/:id', ah(async (req, res) => {
   const commitment = await db.get('SELECT * FROM commitments WHERE id = $1', [req.params.id]);
   if (!commitment) return res.status(404).json({ error: 'Commitment not found' });
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [commitment.retro_id]);
-  if (!(await requireRetroAccess(req, res, retro))) return;
+  const access = await requireRetroAccess(req, res, retro);
+  if (!access) return;
+  // Only the assignee or the retro admin can update a commitment
+  if (access.role !== 'admin' && commitment.assignee !== access.name) {
+    return res.status(403).json({ error: 'Only the assignee or the retro admin can update this commitment' });
+  }
+  const newStatus = status ?? commitment.status;
   await db.run(`UPDATE commitments SET description = $1, assignee = $2, due_date = $3, status = $4,
-    completed_at = CASE WHEN status = 'done' AND completed_at IS NULL THEN to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') ELSE completed_at END
+    completed_at = CASE WHEN $4 = 'done' AND completed_at IS NULL THEN to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') ELSE completed_at END
     WHERE id = $5`,
     [description ?? commitment.description, assignee ?? commitment.assignee,
-      due_date ?? commitment.due_date, status ?? commitment.status, req.params.id]);
+      due_date ?? commitment.due_date, newStatus, req.params.id]);
   const updated = await db.get('SELECT * FROM commitments WHERE id = $1', [req.params.id]);
 
   // Gamification: award points when a commitment transitions to done
@@ -529,7 +583,12 @@ app.delete('/api/commitments/:id', ah(async (req, res) => {
   const commitment = await db.get('SELECT * FROM commitments WHERE id = $1', [req.params.id]);
   if (!commitment) return res.status(404).json({ error: 'Commitment not found' });
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [commitment.retro_id]);
-  if (!(await requireRetroAccess(req, res, retro))) return;
+  const access = await requireRetroAccess(req, res, retro);
+  if (!access) return;
+  // Only the assignee or the retro admin can delete a commitment
+  if (access.role !== 'admin' && commitment.assignee !== access.name) {
+    return res.status(403).json({ error: 'Only the assignee or the retro admin can delete this commitment' });
+  }
   await db.run('DELETE FROM points WHERE commitment_id = $1', [req.params.id]);
   await db.run('DELETE FROM commitments WHERE id = $1', [req.params.id]);
   broadcast(commitment.retro_id, 'commitment_deleted', { id: Number(req.params.id) });
@@ -566,15 +625,23 @@ app.get('/api/evolution', ah(async (req, res) => {
 }));
 
 // --- Gamification / leaderboard ---
+// Global leaderboard: only for logged-in users (points are per admin's retros)
 app.get('/api/leaderboard', ah(async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Log in to see the leaderboard' });
   const rows = await db.all(`
-    SELECT participant_name, SUM(amount) AS total_points,
-      COUNT(CASE WHEN reason = 'Commitment completed' THEN 1 END) AS completed_commitments
-    FROM points GROUP BY participant_name ORDER BY total_points DESC`);
+    SELECT p.participant_name, SUM(p.amount) AS total_points,
+      COUNT(CASE WHEN p.reason = 'Commitment completed' THEN 1 END) AS completed_commitments
+    FROM points p
+    JOIN retros r ON r.id = p.retro_id
+    WHERE r.created_by = $1
+    GROUP BY p.participant_name ORDER BY total_points DESC`, [user.username]);
   res.json(rows);
 }));
 
 app.get('/api/retros/:id/leaderboard', ah(async (req, res) => {
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
+  if (!(await requireRetroAccess(req, res, retro))) return;
   const rows = await db.all(`
     SELECT participant_name, SUM(amount) AS total_points
     FROM points WHERE retro_id = $1 GROUP BY participant_name ORDER BY total_points DESC`, [req.params.id]);
@@ -602,8 +669,15 @@ app.get('/api/retros/:id/acta', ah(async (req, res) => {
   lines.push(`**Date:** ${retro.created_at}`);
   lines.push(`**Participants:** ${participants.map(p => p.name).join(', ') || '—'}`);
   lines.push('');
-  for (const col of ['went_well', 'didnt_go_well']) {
-    const label = col === 'went_well' ? 'What Went Well' : "What Didn't Go Well";
+  // Iterate the retro's template columns so no cards are left out
+  const TEMPLATE_COLUMNS = {
+    classic: { went_well: 'What Went Well', didnt_go_well: "What Didn't Go Well", action: 'Action Items' },
+    ssc: { start_doing: 'Start Doing', stop_doing: 'Stop Doing', continue_doing: 'Continue Doing' },
+    msg: { mad: 'Mad', sad: 'Sad', glad: 'Glad' },
+    '4ls': { liked: 'Liked', learned: 'Learned', lacked: 'Lacked', longed_for: 'Longed For' },
+  };
+  const columns = TEMPLATE_COLUMNS[retro.template] || TEMPLATE_COLUMNS.classic;
+  for (const [col, label] of Object.entries(columns)) {
     lines.push(`## ${label}`);
     for (const c of cards.filter(c => c.column_type === col)) {
       lines.push(`- ${c.content} _(${c.votes} 👍, by ${c.author})_`);
@@ -618,6 +692,16 @@ app.get('/api/retros/:id/acta', ah(async (req, res) => {
   res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="retro-${retro.id}-minutes.md"`);
   res.send(lines.join('\n'));
+}));
+
+// --- Healthcheck (for Render and uptime monitors) ---
+app.get('/api/health', ah(async (req, res) => {
+  try {
+    await db.get('SELECT 1');
+    res.json({ ok: true });
+  } catch {
+    res.status(503).json({ ok: false });
+  }
 }));
 
 // --- Error handler ---
@@ -635,3 +719,15 @@ const PORT = process.env.PORT || 3000;
   console.error('Failed to start:', err.message);
   process.exit(1);
 });
+
+// --- Graceful shutdown (Render sends SIGTERM on deploys/restarts) ---
+function shutdown(signal) {
+  console.log(`${signal} received — closing server...`);
+  server.close(() => {
+    db.close().then(() => process.exit(0)).catch(() => process.exit(0));
+  });
+  // Force exit if connections don't drain in time
+  setTimeout(() => process.exit(0), 8000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

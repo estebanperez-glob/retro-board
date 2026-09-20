@@ -100,10 +100,23 @@ async function initSchema() {
     // Backfill: generate join codes and participant tokens for existing rows
     `UPDATE retros SET join_code = substr(md5(random()::text || clock_timestamp()::text), 1, 10) WHERE join_code IS NULL`,
     `UPDATE participants SET access_token = md5(random()::text || clock_timestamp()::text || id::text) WHERE access_token IS NULL`,
+    // Indexes on FK columns (speed up joins and per-retro queries)
+    `CREATE INDEX IF NOT EXISTS idx_cards_retro_id ON cards(retro_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_votes_card_id ON votes(card_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_commitments_retro_id ON commitments(retro_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_participants_retro_id ON participants(retro_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_points_retro_id ON points(retro_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_participants_token ON participants(access_token)`,
   ];
   for (const sql of migrations) {
     await pool.query(sql);
   }
+}
+
+// Close the pool (used on graceful shutdown)
+async function close() {
+  await pool.end();
 }
 
 // Query helper: returns rows array (like better-sqlite3 .all())
@@ -124,4 +137,4 @@ async function run(sql, params = []) {
   return { lastInsertRowid: res.rows[0]?.id ?? null, rowCount: res.rowCount };
 }
 
-module.exports = { pool, initSchema, all, get, run };
+module.exports = { pool, initSchema, all, get, run, close };

@@ -385,3 +385,29 @@ header nav a:hover { color: var(--accent); }
   border-top: 3px solid var(--accent);
 }
 .account-card h3 { margin-bottom: 12px; }
+
+/* ---------- Empty column state ---------- */
+.empty-column {
+  text-align: center; font-size: 0.85rem;
+  padding: 18px 8px; border: 1px dashed var(--surface-2);
+  border-radius: 8px; margin: 4px 0;
+}
+
+/* ---------- Mobile responsiveness ---------- */
+@media (max-width: 720px) {
+  header {
+    flex-direction: column; gap: 8px; padding: 12px;
+  }
+  header nav {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+  }
+  .board { grid-template-columns: 1fr !important; }
+  .column { margin-bottom: 16px; }
+  .join-form { flex-direction: column; }
+  .join-form input, .join-form select, .join-form button { width: 100%; }
+  .dashboard-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .participants-bar { flex-wrap: wrap; }
+  .modal { padding: 20px; }
+  .account-wrap { margin: 16px auto; }
+  .graffiti-title { transform: none; }
+}
