@@ -54,7 +54,8 @@ const Auth = {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
-      <div class="modal">
+      <div class="modal" role="dialog" aria-modal="true">
+        <button class="modal-close" aria-label="Close" title="Close">&times;</button>
         <h3>${mode === 'login' ? 'Log In' : 'Create Account'}</h3>
         <p class="muted" style="font-size:0.85rem">Admins log in to create and manage their own retro spaces. Participants don't need an account.</p>
         <div class="form-group">
@@ -71,7 +72,18 @@ const Auth = {
         </div>
       </div>`;
     document.body.appendChild(overlay);
-    overlay.querySelector('#auth-switch').onclick = () => { overlay.remove(); this.openAuthModal(mode === 'login' ? 'register' : 'login'); };
+    const close = () => overlay.remove();
+    overlay.querySelector('.modal-close').onclick = close;
+    // Click on the dark backdrop (not the modal itself) closes it
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    // Escape key closes it
+    const escHandler = e => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); } };
+    document.addEventListener('keydown', escHandler);
+    overlay.querySelector('#auth-switch').onclick = () => {
+      document.removeEventListener('keydown', escHandler);
+      close();
+      this.openAuthModal(mode === 'login' ? 'register' : 'login');
+    };
     overlay.querySelector('#auth-user').focus();
     const submit = async () => {
       const username = overlay.querySelector('#auth-user').value.trim();

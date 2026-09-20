@@ -49,7 +49,14 @@ const TEMPLATES = {
 
 // ---------- Home ----------
 async function renderHome() {
+  const graffitiTitle = 'RETRO BOARD'.split('').map((ch, i) =>
+    ch === ' ' ? '<span class="space"> </span>' : `<span class="g${i % 5}">${ch}</span>`
+  ).join('');
   const hero = `
+    <section class="graffiti-hero">
+      <h2 class="graffiti-title" aria-label="Retro Board">${graffitiTitle}</h2>
+      <p class="graffiti-tagline">Spray your ideas. Vote the best. Ship the fixes. 🎨</p>
+    </section>
     <div class="home-hero">
       <h2>Make your retros fun and actionable 🎉</h2>
       <p class="muted">Create a retrospective, share the invitation link with your team, and track commitments together.</p>
