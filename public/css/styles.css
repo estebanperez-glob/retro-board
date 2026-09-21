@@ -11,6 +11,19 @@
   --radius: 12px;
 }
 
+/* Light theme (applied via body.light-theme or html.light-init pre-render) */
+html.light-init, body.light-theme {
+  --bg: #f4f4fb;
+  --surface: #ffffff;
+  --surface-2: #eceef8;
+  --text: #23233c;
+  --muted: #6b6b85;
+  --accent: #5b4fd6;
+  --green: #16a34a;
+  --red: #dc2626;
+  --yellow: #d97706;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -411,3 +424,25 @@ header nav a:hover { color: var(--accent); }
   .account-wrap { margin: 16px auto; }
   .graffiti-title { transform: none; }
 }
+
+/* ---------- Drag & drop ---------- */
+.card[draggable="true"] { cursor: grab; }
+.card.dragging { opacity: 0.5; transform: rotate(2deg); }
+.cards.drag-over {
+  outline: 2px dashed var(--accent);
+  outline-offset: 3px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ---------- Theme toggle ---------- */
+.theme-toggle {
+  background: var(--surface-2);
+  border: 1px solid var(--muted);
+  border-radius: 50%;
+  width: 34px; height: 34px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.theme-toggle:hover { transform: scale(1.1); }

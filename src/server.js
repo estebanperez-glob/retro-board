@@ -188,8 +188,29 @@ app.get('/api/me', ah(async (req, res) => {
 app.get('/api/account', ah(async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Login required' });
-  const row = await db.get('SELECT security_question FROM users WHERE id = $1', [user.id]);
-  res.json({ username: user.username, security_question: row?.security_question || null });
+  const row = await db.get('SELECT security_question, email, notify_overdue FROM users WHERE id = $1', [user.id]);
+  res.json({
+    username: user.username,
+    security_question: row?.security_question || null,
+    email: row?.email || '',
+    notify_overdue: !!row?.notify_overdue,
+  });
+}));
+
+app.put('/api/account/email', ah(async (req, res) => {
+  const { email, notify_overdue } = req.body;
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Login required' });
+  const emailTrimmed = email ? String(email).trim() : null;
+  if (emailTrimmed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
+  if (notify_overdue && !emailTrimmed) {
+    return res.status(400).json({ error: 'An email address is required to enable notifications' });
+  }
+  await db.run('UPDATE users SET email = $1, notify_overdue = $2 WHERE id = $3',
+    [emailTrimmed, !!notify_overdue, user.id]);
+  res.json({ ok: true });
 }));
 
 app.put('/api/account/password', ah(async (req, res) => {
@@ -448,17 +469,27 @@ app.post('/api/retros/:id/cards', ah(async (req, res) => {
 }));
 
 app.put('/api/cards/:id', ah(async (req, res) => {
-  const { content } = req.body;
+  const { content, column_type } = req.body;
   const card = await db.get('SELECT * FROM cards WHERE id = $1', [req.params.id]);
   if (!card) return res.status(404).json({ error: 'Card not found' });
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [card.retro_id]);
   const access = await requireRetroAccess(req, res, retro);
   if (!access) return;
-  // Only the card's author or the retro admin can edit it
-  if (access.role !== 'admin' && card.author !== access.name) {
+  // Editing content: only the card's author or the retro admin.
+  // Moving between columns: any participant can.
+  const isContentEdit = content !== undefined && content.trim() !== card.content;
+  if (isContentEdit && access.role !== 'admin' && card.author !== access.name) {
     return res.status(403).json({ error: 'Only the card author or the retro admin can edit this card' });
   }
-  await db.run('UPDATE cards SET content = $1 WHERE id = $2', [content.trim(), req.params.id]);
+  // Moving between columns is allowed for any participant; editing content only author/admin
+  if (column_type !== undefined) {
+    const validColumns = TEMPLATE_COLUMNS[retro.template] || TEMPLATE_COLUMNS.classic;
+    if (!validColumns.includes(column_type))
+      return res.status(400).json({ error: 'Invalid column' });
+  }
+  const newColumn = column_type !== undefined ? column_type : card.column_type;
+  await db.run('UPDATE cards SET content = $1, column_type = $2 WHERE id = $3',
+    [content !== undefined ? content.trim() : card.content, newColumn, req.params.id]);
   const updated = await db.get(`
     SELECT c.*, (SELECT COUNT(*) FROM votes v WHERE v.card_id = c.id) AS votes FROM cards c WHERE c.id = $1`,
     [req.params.id]);
@@ -712,9 +743,66 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
+// --- Overdue commitment email notifications (optional; needs SMTP env vars) ---
+const nodemailer = require('nodemailer');
+
+const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function getMailer() {
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) return null; // not configured → disabled
+  return {
+    transporter: nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: Number(SMTP_PORT) || 587,
+      secure: Number(SMTP_PORT) === 465,
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
+    }),
+    from: SMTP_FROM || SMTP_USER,
+  };
+}
+
+async function notifyOverdueCommitments() {
+  const mailer = getMailer();
+  if (!mailer) return;
+  try {
+    // Users who opted in and have open commitments past their due date
+    const overdue = await db.all(`
+      SELECT DISTINCT u.id AS user_id, u.username, u.email
+      FROM users u
+      JOIN commitments cm ON cm.assignee = u.username
+      WHERE u.notify_overdue = TRUE AND u.email IS NOT NULL
+        AND cm.status <> 'done' AND cm.due_date IS NOT NULL AND cm.due_date < to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD')`);
+    for (const user of overdue) {
+      const items = await db.all(`
+        SELECT cm.description, cm.due_date, r.title, r.id AS retro_id
+        FROM commitments cm JOIN retros r ON r.id = cm.retro_id
+        WHERE cm.assignee = $1 AND cm.status <> 'done'
+          AND cm.due_date IS NOT NULL AND cm.due_date < to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+        ORDER BY cm.due_date`, [user.username]);
+      if (!items.length) continue;
+      const list = items.map(i => `<li><strong>${escHtml(i.title)}</strong>: ${escHtml(i.description)} — due ${i.due_date}</li>`).join('');
+      await mailer.transporter.sendMail({
+        from: mailer.from,
+        to: user.email,
+        subject: `⏰ Retro Board: you have ${items.length} overdue commitment${items.length > 1 ? 's' : ''}`,
+        html: `<p>Hi ${escHtml(user.username)},</p>
+               <p>These commitments from your retros are past their due date:</p>
+               <ul>${list}</ul>
+               <p>Wrap them up and mark them as done 💪</p>`,
+      });
+    }
+  } catch (err) {
+    console.error('Overdue notification error:', err.message);
+  }
+}
+
 (async () => {
   await db.initSchema();
   server.listen(PORT, () => console.log(`Retro Board running at http://localhost:${PORT}`));
+  // Check every 6 hours; also run once shortly after boot
+  setTimeout(notifyOverdueCommitments, 30 * 1000);
+  setInterval(notifyOverdueCommitments, 6 * 60 * 60 * 1000);
 })().catch(err => {
   console.error('Failed to start:', err.message);
   process.exit(1);

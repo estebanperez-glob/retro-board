@@ -2,6 +2,13 @@
 const Auth = {
   token: localStorage.getItem('retroToken') || null,
   username: localStorage.getItem('retroAuthUser') || null,
+  initTheme() {
+    // Move the pre-render class from <html> to <body> and keep it in sync
+    if (document.documentElement.classList.contains('light-init')) {
+      document.documentElement.classList.remove('light-init');
+      document.body.classList.add('light-theme');
+    }
+  },
   set(token, username) {
     this.token = token;
     this.username = username;
@@ -37,7 +44,18 @@ const Auth = {
       <a href="/">Home</a>
       <a href="/history.html">History</a>
       <a href="/leaderboard.html">Leaderboard</a>
-      ${authArea}`;
+      ${authArea}
+      <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">🌙</button>`;
+    const themeBtn = document.getElementById('theme-toggle');
+    const syncThemeBtn = () => {
+      themeBtn.textContent = document.body.classList.contains('light-theme') ? '🌙' : '☀️';
+    };
+    syncThemeBtn();
+    themeBtn.onclick = () => {
+      document.body.classList.toggle('light-theme');
+      localStorage.setItem('retroTheme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+      syncThemeBtn();
+    };
     const loginLink = document.getElementById('nav-login');
     if (loginLink) loginLink.onclick = e => { e.preventDefault(); this.openAuthModal(); };
     const logoutLink = document.getElementById('nav-logout');
@@ -217,4 +235,5 @@ const Auth = {
     };
   },
 };
+Auth.initTheme();
 Auth.renderNav();

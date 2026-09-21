@@ -235,6 +235,7 @@ async function renderRetro() {
     <div style="margin-top:24px">
       <button class="btn" id="add-commitment">+ Add Commitment</button>
       <a class="btn secondary" href="/api/retros/${currentRetroId}/acta?token=${encodeURIComponent(storedToken || '')}" download style="text-decoration:none;display:inline-block;margin-left:8px">⬇ Export Minutes (acta)</a>
+      <button class="btn secondary" id="export-pdf" style="margin-left:8px">🖨 Export PDF</button>
     </div>`;
 
   renderParticipants(participants);
@@ -335,11 +336,46 @@ function renderBoard(cards, template) {
   board.querySelectorAll('.edit-btn').forEach(btn => {
     btn.onclick = () => openEditCardModal(btn.dataset.id, btn.dataset.content);
   });
+
+  // Drag & drop: move cards between columns
+  board.querySelectorAll('.card').forEach(cardEl => {
+    cardEl.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', cardEl.dataset.id);
+      e.dataTransfer.effectAllowed = 'move';
+      cardEl.classList.add('dragging');
+    });
+    cardEl.addEventListener('dragend', () => cardEl.classList.remove('dragging'));
+  });
+  board.querySelectorAll('.cards').forEach(colEl => {
+    colEl.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      colEl.classList.add('drag-over');
+    });
+    colEl.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
+    colEl.addEventListener('drop', async e => {
+      e.preventDefault();
+      colEl.classList.remove('drag-over');
+      const cardId = e.dataTransfer.getData('text/plain');
+      if (!cardId) return;
+      const targetCol = colEl.dataset.col;
+      const cardEl = board.querySelector(`.card[data-id="${cardId}"]`);
+      // Skip if already in the target column
+      if (cardEl && cardEl.closest('.cards') === colEl) return;
+      try {
+        await Auth.api(`/cards/${cardId}`, { method: 'PUT', body: JSON.stringify({ column_type: targetCol }) });
+        // Optimistic move; WS broadcast updates everyone else
+        if (cardEl) colEl.appendChild(cardEl);
+      } catch (err) {
+        toast(err.message, 'points');
+      }
+    });
+  });
 }
 
 function renderCard(card) {
   return `
-    <div class="card" data-id="${card.id}">
+    <div class="card" data-id="${card.id}" draggable="true">
       <div class="content">${Auth.esc(card.content)}</div>
       <div class="meta">
         <span>by ${Auth.esc(card.author)}</span>
@@ -593,7 +629,53 @@ function wireRetroEvents() {
       .catch(() => toast('Could not copy', 'points'));
   };
   document.getElementById('add-commitment').onclick = () => openCommitmentModal();
+  document.getElementById('export-pdf').onclick = () => openPrintableActa(currentRetroId, storedToken);
   refreshVotesCounter();
+}
+
+// ---------- Printable acta (Export PDF via print dialog) ----------
+async function openPrintableActa(retroId, participantToken) {
+  // Fetch the acta as markdown, then render a clean printable view
+  const headers = {};
+  if (participantToken) headers['X-Participant-Token'] = participantToken;
+  const res = await fetch(`/api/retros/${retroId}/acta`, { headers });
+  if (!res.ok) { toast('Could not load the acta', 'points'); return; }
+  const md = await res.text();
+
+  // Minimal markdown → HTML (headings, bold, italics, list items)
+  const html = md.split('\n').map(line => {
+    if (line.startsWith('# ')) return `<h1>${Auth.esc(line.slice(2))}</h1>`;
+    if (line.startsWith('## ')) return `<h2>${Auth.esc(line.slice(3))}</h2>`;
+    if (line.startsWith('- ')) return `<li>${Auth.esc(line.slice(2))}</li>`;
+    if (!line.trim()) return '';
+    return `<p>${Auth.esc(line)}</p>`;
+  }).join('\n')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/_(.+?)_/g, '<em>$1</em>');
+
+  const win = window.open('', '_blank');
+  if (!win) { toast('Pop-up blocked — allow pop-ups to export PDF', 'points'); return; }
+  win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Retro Board — Minutes</title>
+  <style>
+    body { font-family: Georgia, 'Times New Roman', serif; max-width: 720px; margin: 40px auto; color: #1a1a2e; line-height: 1.6; }
+    h1 { border-bottom: 2px solid #5b6ee1; padding-bottom: 8px; }
+    h2 { color: #5b6ee1; margin-top: 28px; }
+    li { margin: 4px 0; }
+    .print-hint { background: #eef0fb; border: 1px solid #c5cdf0; padding: 10px 14px; border-radius: 8px; margin-bottom: 24px; font-family: system-ui, sans-serif; font-size: 0.9rem; }
+    @media print { .print-hint { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="print-hint">💡 Tip: in the print dialog choose <strong>"Save as PDF"</strong> as the destination.</div>
+  ${html}
+  <script>window.onload = () => setTimeout(() => window.print(), 300);<\/script>
+</body>
+</html>`);
+  win.document.close();
 }
 
 // ---------- Router ----------

@@ -66,6 +66,24 @@ async function renderAccount() {
         </div>
         <button class="btn" id="acc-savesec">Save Security Question</button>
       </div>
+
+      <div class="account-card">
+        <h3>📧 Email Notifications</h3>
+        <p class="muted" style="font-size:0.85rem">
+          Get an email when your commitments become overdue (checked every 6 hours).
+        </p>
+        <div class="form-group">
+          <label>Email address</label>
+          <input type="email" id="acc-email" placeholder="you@example.com" value="${Auth.esc(account.email || '')}">
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="acc-notify" ${account.notify_overdue ? 'checked' : ''} style="width:auto">
+            Notify me about overdue commitments
+          </label>
+        </div>
+        <button class="btn" id="acc-saveemail">Save Email Settings</button>
+      </div>
     </div>`;
 
   document.getElementById('acc-savepass').onclick = async () => {
@@ -101,6 +119,20 @@ async function renderAccount() {
       });
       Auth.toast('Security question updated ✅');
       renderAccount();
+    } catch (err) {
+      Auth.toast(err.message);
+    }
+  };
+
+  document.getElementById('acc-saveemail').onclick = async () => {
+    const email = document.getElementById('acc-email').value.trim();
+    const notify_overdue = document.getElementById('acc-notify').checked;
+    if (notify_overdue && !email) return Auth.toast('Enter an email address to enable notifications');
+    try {
+      await Auth.api('/account/email', {
+        method: 'PUT', body: JSON.stringify({ email, notify_overdue }),
+      });
+      Auth.toast('Email settings saved ✅');
     } catch (err) {
       Auth.toast(err.message);
     }
