@@ -336,41 +336,6 @@ function renderBoard(cards, template) {
   board.querySelectorAll('.edit-btn').forEach(btn => {
     btn.onclick = () => openEditCardModal(btn.dataset.id, btn.dataset.content);
   });
-
-  // Drag & drop: move cards between columns
-  board.querySelectorAll('.card').forEach(cardEl => {
-    cardEl.addEventListener('dragstart', e => {
-      e.dataTransfer.setData('text/plain', cardEl.dataset.id);
-      e.dataTransfer.effectAllowed = 'move';
-      cardEl.classList.add('dragging');
-    });
-    cardEl.addEventListener('dragend', () => cardEl.classList.remove('dragging'));
-  });
-  board.querySelectorAll('.cards').forEach(colEl => {
-    colEl.addEventListener('dragover', e => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      colEl.classList.add('drag-over');
-    });
-    colEl.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
-    colEl.addEventListener('drop', async e => {
-      e.preventDefault();
-      colEl.classList.remove('drag-over');
-      const cardId = e.dataTransfer.getData('text/plain');
-      if (!cardId) return;
-      const targetCol = colEl.dataset.col;
-      const cardEl = board.querySelector(`.card[data-id="${cardId}"]`);
-      // Skip if already in the target column
-      if (cardEl && cardEl.closest('.cards') === colEl) return;
-      try {
-        await Auth.api(`/cards/${cardId}`, { method: 'PUT', body: JSON.stringify({ column_type: targetCol }) });
-        // Optimistic move; WS broadcast updates everyone else
-        if (cardEl) colEl.appendChild(cardEl);
-      } catch (err) {
-        toast(err.message, 'points');
-      }
-    });
-  });
 }
 
 function renderCard(card) {
@@ -425,36 +390,60 @@ function renderKanban(commitments) {
       </div>
     </div>`).join('');
 
-  // Drag & drop
-  kanban.querySelectorAll('.commitment').forEach(el => {
-    el.draggable = true;
-    el.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', el.dataset.id));
-  });
-  kanban.querySelectorAll('.kcards').forEach(zone => {
-    zone.addEventListener('dragover', e => e.preventDefault());
-    zone.addEventListener('drop', async e => {
+  // Drag & drop via delegation on the kanban container (survives re-renders)
+  if (!kanban.dataset.wired) {
+    kanban.dataset.wired = 'true';
+    kanban.addEventListener('dragstart', e => {
+      const cmEl = e.target.closest('.commitment');
+      if (!cmEl) return;
+      e.dataTransfer.setData('text/plain', cmEl.dataset.id);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    kanban.addEventListener('dragover', e => {
+      const zone = e.target.closest('.kcards');
+      if (!zone) return;
       e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      zone.classList.add('drag-over');
+    });
+    kanban.addEventListener('dragleave', e => {
+      const zone = e.target.closest('.kcards');
+      if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+    });
+    kanban.addEventListener('drop', async e => {
+      const zone = e.target.closest('.kcards');
+      if (!zone) return;
+      e.preventDefault();
+      zone.classList.remove('drag-over');
       const id = e.dataTransfer.getData('text/plain');
+      if (!id) return;
       const status = zone.dataset.status;
-      const cm = commitments.find(c => c.id === Number(id));
-      if (cm && cm.status !== status) {
+      const cmEl = kanban.querySelector(`.commitment[data-id="${id}"]`);
+      if (cmEl && cmEl.closest('.kcards') === zone) return; // already there
+      try {
         await Auth.api(`/commitments/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
+        // Optimistic move; WS refreshCommitments re-renders with server truth
+        if (cmEl) zone.appendChild(cmEl);
+      } catch (err) {
+        toast(err.message, 'points');
       }
     });
-  });
-
-  kanban.querySelectorAll('.delete-cm').forEach(btn => {
-    btn.onclick = () => Auth.api(`/commitments/${btn.dataset.id}`, { method: 'DELETE' });
-  });
-  kanban.querySelectorAll('.edit-cm').forEach(btn => {
-    btn.onclick = () => openCommitmentModal(commitments.find(c => c.id === Number(btn.dataset.id)));
-  });
+    kanban.addEventListener('click', e => {
+      const del = e.target.closest('.delete-cm');
+      if (del) { Auth.api(`/commitments/${del.dataset.id}`, { method: 'DELETE' }).catch(err => toast(err.message, 'points')); return; }
+      const edit = e.target.closest('.edit-cm');
+      if (edit) {
+        const cm = commitments.find(c => c.id === Number(edit.dataset.id));
+        if (cm) openCommitmentModal(cm);
+      }
+    });
+  }
 }
 
 function renderCommitment(cm) {
   const overdue = cm.due_date && cm.status !== 'done' && new Date(cm.due_date) < new Date();
   return `
-    <div class="commitment ${cm.status} ${overdue ? 'overdue' : ''}" data-id="${cm.id}">
+    <div class="commitment ${cm.status} ${overdue ? 'overdue' : ''}" data-id="${cm.id}" draggable="true">
       <div class="desc">${Auth.esc(cm.description)}</div>
       <div class="meta">
         <span class="assignee">👤 ${Auth.esc(cm.assignee)}</span>
@@ -544,7 +533,11 @@ function handleLiveEvent(event, payload) {
       break;
     case 'card_updated': {
       const el = document.querySelector(`.card[data-id="${payload.id}"]`);
-      if (el) el.outerHTML = renderCard(payload);
+      if (el) {
+        el.outerHTML = renderCard(payload);
+        // If the update moved it to another column, relocate the new node
+        moveCardElement(payload.id, payload.column_type);
+      }
       break;
     }
     case 'card_deleted':

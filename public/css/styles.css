@@ -446,3 +446,11 @@ header nav a:hover { color: var(--accent); }
   transition: transform 0.2s;
 }
 .theme-toggle:hover { transform: scale(1.1); }
+
+/* Kanban drag-over highlight */
+.kcards.drag-over {
+  outline: 2px dashed var(--accent);
+  outline-offset: 3px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
