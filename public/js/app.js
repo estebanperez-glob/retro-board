@@ -336,6 +336,63 @@ function renderBoard(cards, template) {
   board.querySelectorAll('.edit-btn').forEach(btn => {
     btn.onclick = () => openEditCardModal(btn.dataset.id, btn.dataset.content);
   });
+
+  // Drag & drop via delegation on the board container (survives re-renders)
+  if (!board.dataset.wired) {
+    board.dataset.wired = 'true';
+    board.addEventListener('dragstart', e => {
+      const cardEl = e.target.closest('.card');
+      if (!cardEl) return;
+      e.dataTransfer.setData('text/plain', cardEl.dataset.id);
+      e.dataTransfer.effectAllowed = 'move';
+      cardEl.classList.add('dragging');
+    });
+    board.addEventListener('dragend', () => {
+      board.querySelectorAll('.card.dragging').forEach(el => el.classList.remove('dragging'));
+      board.querySelectorAll('.cards.drag-over').forEach(el => el.classList.remove('drag-over'));
+    });
+    board.addEventListener('dragover', e => {
+      const zone = e.target.closest('.cards');
+      if (!zone) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      zone.classList.add('drag-over');
+    });
+    board.addEventListener('dragleave', e => {
+      const zone = e.target.closest('.cards');
+      if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+    });
+    board.addEventListener('drop', async e => {
+      const zone = e.target.closest('.cards');
+      if (!zone) return;
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      const id = e.dataTransfer.getData('text/plain');
+      if (!id) return;
+      const col = zone.dataset.col;
+      const cardEl = board.querySelector(`.card[data-id="${id}"]`);
+      if (cardEl && cardEl.closest('.cards') === zone) return; // already there
+      try {
+        await Auth.api(`/cards/${id}`, { method: 'PUT', body: JSON.stringify({ column_type: col }) });
+        // Optimistic move; WS card_updated re-renders with server truth
+        if (cardEl) zone.appendChild(cardEl);
+      } catch (err) {
+        toast(err.message, 'points');
+      }
+    });
+  }
+}
+
+// Move a card element to the right column (used by WS card_updated)
+function moveCardElement(cardId, columnType) {
+  const cardEl = document.querySelector(`.card[data-id="${cardId}"]`);
+  if (!cardEl) return;
+  const zone = document.querySelector(`.cards[data-col="${columnType}"]`);
+  if (!zone) return;
+  if (cardEl.closest('.cards') === zone) return; // already there
+  zone.appendChild(cardEl);
+  // Remove the "empty column" placeholder if it exists in the target zone
+  zone.querySelector('.empty-column')?.remove();
 }
 
 function renderCard(card) {
