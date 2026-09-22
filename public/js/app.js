@@ -352,30 +352,30 @@ function renderBoard(cards, template) {
       board.querySelectorAll('.cards.drag-over').forEach(el => el.classList.remove('drag-over'));
     });
     board.addEventListener('dragover', e => {
-      const zone = e.target.closest('.cards');
-      if (!zone) return;
+      const colEl = e.target.closest('.column');
+      if (!colEl) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      zone.classList.add('drag-over');
+      colEl.querySelector('.cards')?.classList.add('drag-over');
     });
     board.addEventListener('dragleave', e => {
-      const zone = e.target.closest('.cards');
-      if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+      const colEl = e.target.closest('.column');
+      if (colEl && !colEl.contains(e.relatedTarget)) colEl.querySelector('.cards')?.classList.remove('drag-over');
     });
     board.addEventListener('drop', async e => {
-      const zone = e.target.closest('.cards');
-      if (!zone) return;
+      const colEl = e.target.closest('.column');
+      if (!colEl) return;
       e.preventDefault();
-      zone.classList.remove('drag-over');
+      colEl.querySelector('.cards')?.classList.remove('drag-over');
       const id = e.dataTransfer.getData('text/plain');
       if (!id) return;
-      const col = zone.dataset.col;
+      const col = colEl.dataset.col;
       const cardEl = board.querySelector(`.card[data-id="${id}"]`);
-      if (cardEl && cardEl.closest('.cards') === zone) return; // already there
+      if (cardEl && cardEl.closest('.column') === colEl) return; // already there
       try {
         await Auth.api(`/cards/${id}`, { method: 'PUT', body: JSON.stringify({ column_type: col }) });
-        // Optimistic move; WS card_updated re-renders with server truth
-        if (cardEl) zone.appendChild(cardEl);
+        // No optimistic move: the WS card_updated broadcast re-renders and
+        // relocates the card with server truth (avoids duplicate nodes)
       } catch (err) {
         toast(err.message, 'points');
       }
@@ -457,30 +457,30 @@ function renderKanban(commitments) {
       e.dataTransfer.effectAllowed = 'move';
     });
     kanban.addEventListener('dragover', e => {
-      const zone = e.target.closest('.kcards');
-      if (!zone) return;
+      const colEl = e.target.closest('.kcolumn');
+      if (!colEl) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      zone.classList.add('drag-over');
+      colEl.querySelector('.kcards')?.classList.add('drag-over');
     });
     kanban.addEventListener('dragleave', e => {
-      const zone = e.target.closest('.kcards');
-      if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+      const colEl = e.target.closest('.kcolumn');
+      if (colEl && !colEl.contains(e.relatedTarget)) colEl.querySelector('.kcards')?.classList.remove('drag-over');
     });
     kanban.addEventListener('drop', async e => {
-      const zone = e.target.closest('.kcards');
-      if (!zone) return;
+      const colEl = e.target.closest('.kcolumn');
+      if (!colEl) return;
       e.preventDefault();
-      zone.classList.remove('drag-over');
+      colEl.querySelector('.kcards')?.classList.remove('drag-over');
       const id = e.dataTransfer.getData('text/plain');
       if (!id) return;
-      const status = zone.dataset.status;
+      const status = colEl.dataset.status;
       const cmEl = kanban.querySelector(`.commitment[data-id="${id}"]`);
-      if (cmEl && cmEl.closest('.kcards') === zone) return; // already there
+      if (cmEl && cmEl.closest('.kcolumn') === colEl) return; // already there
       try {
         await Auth.api(`/commitments/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
-        // Optimistic move; WS refreshCommitments re-renders with server truth
-        if (cmEl) zone.appendChild(cmEl);
+        // No optimistic move: WS commitment_updated triggers refreshCommitments
+        // with server truth (avoids duplicate nodes)
       } catch (err) {
         toast(err.message, 'points');
       }

@@ -454,3 +454,6 @@ header nav a:hover { color: var(--accent); }
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
 }
+
+/* ---------- Drop zones ---------- */
+.cards, .kcards { min-height: 120px; }
