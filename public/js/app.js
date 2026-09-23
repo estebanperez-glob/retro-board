@@ -679,15 +679,21 @@ function wireRetroEvents() {
       .catch(() => toast('Could not copy', 'points'));
   };
   document.getElementById('add-commitment').onclick = () => openCommitmentModal();
-  document.getElementById('export-pdf').onclick = () => openPrintableActa(currentRetroId, storedToken);
+  document.getElementById('export-pdf').onclick = () => openPrintableActa(currentRetroId);
   refreshVotesCounter();
 }
 
 // ---------- Printable acta (Export PDF via print dialog) ----------
-async function openPrintableActa(retroId, participantToken) {
-  // Fetch the acta as markdown, then render a clean printable view
+async function openPrintableActa(retroId) {
+  // Fetch the acta as markdown, then render a clean printable view.
+  // The participant token lives in sessionStorage (per retro) — read it here,
+  // it is NOT in this function's scope otherwise.
+  const participantToken = sessionStorage.getItem('retroParticipantToken');
+  const tokenRetroId = sessionStorage.getItem('retroParticipantRetroId');
   const headers = {};
-  if (participantToken) headers['X-Participant-Token'] = participantToken;
+  if (participantToken && String(tokenRetroId) === String(retroId)) {
+    headers['X-Participant-Token'] = participantToken;
+  }
   const res = await fetch(`/api/retros/${retroId}/acta`, { headers });
   if (!res.ok) { toast('Could not load the acta', 'points'); return; }
   const md = await res.text();
@@ -722,10 +728,13 @@ async function openPrintableActa(retroId, participantToken) {
 <body>
   <div class="print-hint">💡 Tip: in the print dialog choose <strong>"Save as PDF"</strong> as the destination.</div>
   ${html}
-  <script>window.onload = () => setTimeout(() => window.print(), 300);<\/script>
 </body>
 </html>`);
   win.document.close();
+  win.focus();
+  // Print directly after writing the document — window.onload inside
+  // document.write is unreliable across browsers
+  setTimeout(() => win.print(), 400);
 }
 
 // ---------- Router ----------
