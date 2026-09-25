@@ -99,6 +99,9 @@ async function initSchema() {
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS security_answer_hash TEXT',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_overdue BOOLEAN NOT NULL DEFAULT FALSE',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT \'free\'',
+    'ALTER TABLE cards ADD COLUMN IF NOT EXISTS group_label TEXT',
+    'ALTER TABLE retros ADD COLUMN IF NOT EXISTS webhook_url TEXT',
     // Backfill: generate join codes and participant tokens for existing rows
     `UPDATE retros SET join_code = substr(md5(random()::text || clock_timestamp()::text), 1, 10) WHERE join_code IS NULL`,
     `UPDATE participants SET access_token = md5(random()::text || clock_timestamp()::text || id::text) WHERE access_token IS NULL`,

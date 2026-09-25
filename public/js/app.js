@@ -4,6 +4,8 @@ let currentRetroId = new URLSearchParams(location.search).get('id');
 let ws = null;
 let retroIsAdmin = false;
 let retroJoinCode = null;
+let retroWebhookUrl = null;
+let retroTemplate = 'classic';
 
 const app = document.getElementById('app');
 
@@ -74,8 +76,15 @@ async function renderHome() {
         <input id="join-id" placeholder="Retro ID to join" style="max-width:200px">
         <button class="btn secondary" id="join-retro">Join Retro</button>
       </div>
+      <p class="muted" style="margin-top:12px"><a href="/templates.html">📖 Browse retro templates →</a></p>
     </div>`;
   app.innerHTML = hero + `<div id="dashboard-section"></div>`;
+
+  // Preselect template from query param (SEO template pages link here)
+  const tplParam = new URLSearchParams(location.search).get('template');
+  if (tplParam && TEMPLATES[tplParam]) {
+    document.getElementById('retro-template').value = tplParam;
+  }
 
   document.getElementById('create-retro').onclick = async () => {
     if (!Auth.token) return Auth.openAuthModal('register');
@@ -195,6 +204,8 @@ async function renderRetro() {
     retro = await Auth.api(`/retros/${currentRetroId}`);
     retroIsAdmin = !!retro.is_admin;
     retroJoinCode = retro.join_code || null;
+    retroWebhookUrl = retro.webhook_url || null;
+    retroTemplate = retro.template || 'classic';
   } catch (err) {
     return renderJoinScreen(err.message);
   }
@@ -236,6 +247,10 @@ async function renderRetro() {
       <button class="btn" id="add-commitment">+ Add Commitment</button>
       <a class="btn secondary" href="/api/retros/${currentRetroId}/acta?token=${encodeURIComponent(storedToken || '')}" download style="text-decoration:none;display:inline-block;margin-left:8px">⬇ Export Minutes (acta)</a>
       <button class="btn secondary" id="export-pdf" style="margin-left:8px">🖨 Export PDF</button>
+      <button class="btn secondary" id="export-csv" style="margin-left:8px">📊 Export CSV (Jira/ADO)</button>
+      <button class="btn secondary" id="ai-summary" style="margin-left:8px">✨ AI Summary</button>
+      <button class="btn secondary" id="auto-group" style="margin-left:8px">🗂 Auto-group Cards</button>
+      <button class="btn secondary" id="facilitator-timer" style="margin-left:8px">⏱ Facilitator Timer</button>
     </div>`;
 
   renderParticipants(participants);
@@ -396,8 +411,11 @@ function moveCardElement(cardId, columnType) {
 }
 
 function renderCard(card) {
+  const groupBadge = card.group_label
+    ? `<span class="group-badge" data-group="${Auth.esc(card.group_label)}" title="Group: ${Auth.esc(card.group_label)}">🗂 ${Auth.esc(card.group_label)}</span> ` : '';
   return `
     <div class="card" data-id="${card.id}" draggable="true">
+      ${groupBadge ? `<div class="group-row">${groupBadge}</div>` : ''}
       <div class="content">${Auth.esc(card.content)}</div>
       <div class="meta">
         <span>by ${Auth.esc(card.author)}</span>
@@ -614,6 +632,9 @@ function handleLiveEvent(event, payload) {
     case 'participants_changed':
       refreshParticipants();
       break;
+    case 'cards_refresh':
+      refreshCards();
+      break;
     case 'points_awarded':
       toast(`🎉 ${payload.participant} earned ${payload.amount} points!`, 'points');
       break;
@@ -640,6 +661,11 @@ async function refreshCommitments() {
 async function refreshParticipants() {
   const participants = await Auth.api(`/retros/${currentRetroId}/participants`);
   renderParticipants(participants);
+}
+
+async function refreshCards() {
+  const cards = await Auth.api(`/retros/${currentRetroId}/cards`);
+  renderBoard(cards, TEMPLATES[retroTemplate] || TEMPLATES.classic);
 }
 
 // ---------- Retro actions ----------
@@ -680,6 +706,23 @@ function wireRetroEvents() {
   };
   document.getElementById('add-commitment').onclick = () => openCommitmentModal();
   document.getElementById('export-pdf').onclick = () => openPrintableActa(currentRetroId);
+  document.getElementById('export-csv').onclick = () => {
+    const token = encodeURIComponent(sessionStorage.getItem('retroParticipantToken') || '');
+    location.href = `/api/retros/${currentRetroId}/commitments.csv?token=${token}`;
+  };
+  document.getElementById('ai-summary').onclick = () => showAiSummary();
+  document.getElementById('auto-group').onclick = () => autoGroupCards();
+  document.getElementById('facilitator-timer').onclick = () => openFacilitatorTimer();
+  // Slack/Teams webhook config (admin only)
+  const webhookBtn = document.createElement('button');
+  webhookBtn.className = 'btn small secondary';
+  webhookBtn.id = 'config-webhook';
+  webhookBtn.textContent = '🔔 Slack/Teams Webhook';
+  webhookBtn.style.marginLeft = '8px';
+  if (retroIsAdmin) {
+    document.getElementById('add-commitment').parentElement.appendChild(webhookBtn);
+    webhookBtn.onclick = () => openWebhookModal();
+  }
   refreshVotesCounter();
 }
 
@@ -735,6 +778,154 @@ async function openPrintableActa(retroId) {
   // Print directly after writing the document — window.onload inside
   // document.write is unreliable across browsers
   setTimeout(() => win.print(), 400);
+}
+
+// ---------- AI Summary (heuristic, server-side) ----------
+async function showAiSummary() {
+  let md;
+  try {
+    const res = await fetch(`/api/retros/${currentRetroId}/summary`, {
+      headers: { 'X-Participant-Token': sessionStorage.getItem('retroParticipantToken') || '' },
+    });
+    if (!res.ok) throw new Error();
+    md = await res.text();
+  } catch {
+    return toast('Could not generate the summary', 'points');
+  }
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal wide">
+      <h3>✨ Executive Summary</h3>
+      <pre id="summary-text" class="summary-pre">${Auth.esc(md)}</pre>
+      <div class="modal-actions">
+        <button class="btn secondary" id="summary-copy">📋 Copy</button>
+        <button class="btn" id="summary-close">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#summary-close').onclick = () => overlay.remove();
+  overlay.querySelector('#summary-copy').onclick = () => {
+    navigator.clipboard.writeText(md)
+      .then(() => toast('Summary copied! Paste it in Slack or email ✅'))
+      .catch(() => toast('Could not copy', 'points'));
+  };
+}
+
+// ---------- Auto-group cards (server-side clustering) ----------
+async function autoGroupCards() {
+  try {
+    const result = await Auth.api(`/retros/${currentRetroId}/auto-group`, { method: 'POST' });
+    toast(`Grouped ${result.grouped} cards into ${result.groups} groups 🗂`);
+    const cards = await Auth.api(`/retros/${currentRetroId}/cards`);
+    renderBoard(cards, TEMPLATES[retroTemplate] || TEMPLATES.classic);
+  } catch (err) {
+    toast(err.message, 'points');
+  }
+}
+
+// ---------- Facilitator timer (client-side, phases with presets) ----------
+const TIMER_PHASES = [
+  { name: 'Gather cards', minutes: 8 },
+  { name: 'Discuss & group', minutes: 10 },
+  { name: 'Vote', minutes: 3 },
+  { name: 'Actions', minutes: 10 },
+];
+
+function openFacilitatorTimer() {
+  if (document.getElementById('timer-widget')) return;
+  const widget = document.createElement('div');
+  widget.id = 'timer-widget';
+  widget.innerHTML = `
+    <div class="timer-head">
+      <strong>⏱ Facilitator Timer</strong>
+      <button class="timer-close" id="timer-close">✕</button>
+    </div>
+    <div class="timer-phase" id="timer-phase">Gather cards</div>
+    <div class="timer-display" id="timer-display">08:00</div>
+    <div class="timer-controls">
+      <button class="btn small" id="timer-start">▶ Start</button>
+      <button class="btn small secondary" id="timer-pause">⏸ Pause</button>
+      <button class="btn small secondary" id="timer-reset">↺ Reset</button>
+      <button class="btn small secondary" id="timer-next">⏭ Next Phase</button>
+    </div>
+    <div class="timer-phases-list" id="timer-phases"></div>`;
+  document.body.appendChild(widget);
+  let phaseIndex = 0;
+  let remaining = TIMER_PHASES[0].minutes * 60;
+  let timerId = null;
+  const renderPhases = () => {
+    document.getElementById('timer-phases').innerHTML = TIMER_PHASES.map((p, i) =>
+      `<span class="timer-phase-item ${i === phaseIndex ? 'active' : ''}">${i + 1}. ${p.name} (${p.minutes}m)</span>`).join('');
+    document.getElementById('timer-phase').textContent = TIMER_PHASES[phaseIndex].name;
+  };
+  const renderTime = () => {
+    const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+    const s = String(remaining % 60).padStart(2, '0');
+    document.getElementById('timer-display').textContent = `${m}:${s}`;
+    document.title = `${m}:${s} — ${TIMER_PHASES[phaseIndex].name} · Retro Board`;
+  };
+  const stop = () => { if (timerId) { clearInterval(timerId); timerId = null; } };
+  const tick = () => {
+    remaining -= 1;
+    if (remaining <= 0) {
+      stop();
+      toast(`⏰ Time's up for "${TIMER_PHASES[phaseIndex].name}"!`);
+      document.title = '⏰ Time\'s up! · Retro Board';
+      return;
+    }
+    renderTime();
+  };
+  document.getElementById('timer-start').onclick = () => { stop(); timerId = setInterval(tick, 1000); };
+  document.getElementById('timer-pause').onclick = stop;
+  document.getElementById('timer-reset').onclick = () => { stop(); remaining = TIMER_PHASES[phaseIndex].minutes * 60; renderTime(); };
+  document.getElementById('timer-next').onclick = () => {
+    stop();
+    phaseIndex = (phaseIndex + 1) % TIMER_PHASES.length;
+    remaining = TIMER_PHASES[phaseIndex].minutes * 60;
+    renderPhases(); renderTime();
+  };
+  document.getElementById('timer-close').onclick = () => { stop(); widget.remove(); document.title = 'Retro Board'; };
+  renderPhases(); renderTime();
+}
+
+// ---------- Slack/Teams webhook modal (admin) ----------
+function openWebhookModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>🔔 Slack / Teams Notifications</h3>
+      <p class="muted" style="font-size:0.85rem">Paste an incoming webhook URL to get notified when commitments are created or completed. Works with Slack (<code>hooks.slack.com</code>) and Teams workflows.</p>
+      <div class="form-group">
+        <label>Webhook URL</label>
+        <input id="webhook-url" placeholder="https://hooks.slack.com/services/..." value="${Auth.esc(retroWebhookUrl || '')}">
+      </div>
+      <div class="modal-actions">
+        <button class="btn secondary" id="webhook-remove">Remove</button>
+        <button class="btn secondary" id="webhook-cancel">Cancel</button>
+        <button class="btn" id="webhook-save">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#webhook-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#webhook-remove').onclick = async () => {
+    await Auth.api(`/retros/${currentRetroId}/webhook`, { method: 'PUT', body: JSON.stringify({ webhook_url: null }) });
+    retroWebhookUrl = null;
+    toast('Webhook removed');
+    overlay.remove();
+  };
+  overlay.querySelector('#webhook-save').onclick = async () => {
+    const webhook_url = overlay.querySelector('#webhook-url').value.trim();
+    try {
+      await Auth.api(`/retros/${currentRetroId}/webhook`, { method: 'PUT', body: JSON.stringify({ webhook_url }) });
+      retroWebhookUrl = webhook_url;
+      toast('Webhook saved! You will get notifications 🔔');
+      overlay.remove();
+    } catch (err) {
+      toast(err.message, 'points');
+    }
+  };
 }
 
 // ---------- Router ----------

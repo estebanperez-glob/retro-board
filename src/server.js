@@ -97,6 +97,10 @@ setInterval(() => {
 
 const authRateLimit = rateLimit({ windowMs: 60000, max: 10 });
 
+// --- Freemium plan limits ---
+const FREE_MAX_RETROS = 5;        // total retros a free user can create
+const FREE_MAX_PARTICIPANTS = 10; // participants per retro on the free plan
+
 // Validate that :id route params are numeric retro/card/commitment IDs.
 // Non-numeric IDs (e.g. /retro.html?id=test) would otherwise hit Postgres
 // with an invalid integer and surface as a 500 "Internal server error".
@@ -300,6 +304,14 @@ app.post('/api/retros', ah(async (req, res) => {
   if (String(title).trim().length > 100) return res.status(400).json({ error: 'Title must be at most 100 characters' });
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Log in to create a retro' });
+  // Freemium limits: free plan caps total retros and participants per retro
+  const plan = (await db.get('SELECT plan FROM users WHERE id = $1', [user.id]))?.plan || 'free';
+  if (plan === 'free') {
+    const count = Number((await db.get('SELECT COUNT(*) AS n FROM retros WHERE created_by = $1', [user.username])).n);
+    if (count >= FREE_MAX_RETROS) {
+      return res.status(402).json({ error: `Free plan limit reached (${FREE_MAX_RETROS} retros). Upgrade to Pro for unlimited retros.` });
+    }
+  }
   const validTemplates = ['classic', 'ssc', 'msg', '4ls'];
   const tpl = validTemplates.includes(template) ? template : 'classic';
   const joinCode = crypto.randomBytes(5).toString('hex'); // 10-char invitation code
@@ -352,7 +364,7 @@ app.get('/api/retros/:id', ah(async (req, res) => {
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
   const access = await requireRetroAccess(req, res, retro);
   if (!access) return;
-  res.json({ ...retro, join_code: access.role === 'admin' ? retro.join_code : undefined, is_admin: access.role === 'admin' });
+  res.json({ ...retro, join_code: access.role === 'admin' ? retro.join_code : undefined, is_admin: access.role === 'admin', webhook_url: access.role === 'admin' ? retro.webhook_url : undefined });
 }));
 
 // Only the retro's creator (admin) can close, reopen or delete it
@@ -408,6 +420,16 @@ app.post('/api/retros/:id/join', ah(async (req, res) => {
   const existing = await db.get('SELECT access_token FROM participants WHERE retro_id = $1 AND name = $2', [retro.id, trimmed]);
   if (existing) {
     return res.json({ ok: true, name: trimmed, access_token: existing.access_token });
+  }
+  // Freemium limit: participants per retro on the free plan
+  const adminPlan = (await db.get(
+    "SELECT plan FROM users WHERE username = $1", [retro.created_by]))?.plan || 'free';
+  if (adminPlan === 'free') {
+    const count = Number((await db.get(
+      'SELECT COUNT(*) AS n FROM participants WHERE retro_id = $1', [retro.id])).n);
+    if (count >= FREE_MAX_PARTICIPANTS) {
+      return res.status(402).json({ error: `Free plan limit reached (${FREE_MAX_PARTICIPANTS} participants per retro). Ask the admin to upgrade.` });
+    }
   }
   const accessToken = crypto.randomBytes(24).toString('hex');
   await db.run(
@@ -469,7 +491,7 @@ app.post('/api/retros/:id/cards', ah(async (req, res) => {
 }));
 
 app.put('/api/cards/:id', ah(async (req, res) => {
-  const { content, column_type } = req.body;
+  const { content, column_type, group_label } = req.body;
   const card = await db.get('SELECT * FROM cards WHERE id = $1', [req.params.id]);
   if (!card) return res.status(404).json({ error: 'Card not found' });
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [card.retro_id]);
@@ -488,8 +510,9 @@ app.put('/api/cards/:id', ah(async (req, res) => {
       return res.status(400).json({ error: 'Invalid column' });
   }
   const newColumn = column_type !== undefined ? column_type : card.column_type;
-  await db.run('UPDATE cards SET content = $1, column_type = $2 WHERE id = $3',
-    [content !== undefined ? content.trim() : card.content, newColumn, req.params.id]);
+  const newGroup = group_label !== undefined ? (group_label ? String(group_label).trim().slice(0, 40) : null) : card.group_label;
+  await db.run('UPDATE cards SET content = $1, column_type = $2, group_label = $3 WHERE id = $4',
+    [content !== undefined ? content.trim() : card.content, newColumn, newGroup, req.params.id]);
   const updated = await db.get(`
     SELECT c.*, (SELECT COUNT(*) FROM votes v WHERE v.card_id = c.id) AS votes FROM cards c WHERE c.id = $1`,
     [req.params.id]);
@@ -571,6 +594,7 @@ app.post('/api/retros/:id/commitments', ah(async (req, res) => {
     [req.params.id, description.trim(), assignee, due_date || null]);
   const commitment = await db.get('SELECT * FROM commitments WHERE id = $1', [info.lastInsertRowid]);
   broadcast(req.params.id, 'commitment_added', commitment);
+  notifyWebhook(retro.id, `📋 New commitment in "${retro.title}": ${commitment.description} — assigned to ${commitment.assignee}${commitment.due_date ? ` (due ${commitment.due_date})` : ''}`);
   res.status(201).json(commitment);
 }));
 
@@ -599,6 +623,7 @@ app.put('/api/commitments/:id', ah(async (req, res) => {
       'INSERT INTO points (participant_name, retro_id, commitment_id, amount, reason) VALUES ($1, $2, $3, 10, $4)',
       [updated.assignee, updated.retro_id, updated.id, 'Commitment completed']);
     broadcast(updated.retro_id, 'points_awarded', { participant: updated.assignee, amount: 10 });
+    notifyWebhook(retro.id, `✅ Commitment completed in "${retro.title}": ${updated.description} — kudos to ${updated.assignee} (+10 points) 🎉`);
   }
   // Remove points if it goes back from done
   if (status && status !== 'done' && commitment.status === 'done') {
@@ -723,6 +748,203 @@ app.get('/api/retros/:id/acta', ah(async (req, res) => {
   res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="retro-${retro.id}-minutes.md"`);
   res.send(lines.join('\n'));
+}));
+
+// --- Team Health Score: composite 0-100 per retro (participation, engagement, follow-through) ---
+app.get('/api/health-score', ah(async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Log in to see the health score' });
+  const retros = await db.all('SELECT id, title, sprint, created_at, status FROM retros WHERE created_by = $1 ORDER BY created_at ASC', [user.username]);
+  const scores = [];
+  for (const retro of retros) {
+    const [participants, cards, votes, commitments] = await Promise.all([
+      db.get('SELECT COUNT(*) AS n FROM participants WHERE retro_id = $1', [retro.id]),
+      db.get('SELECT COUNT(*) AS n FROM cards WHERE retro_id = $1', [retro.id]),
+      db.get('SELECT COUNT(*) AS n FROM votes WHERE retro_id = $1', [retro.id]),
+      db.all('SELECT status FROM commitments WHERE retro_id = $1', [retro.id]),
+    ]);
+    const participantCount = Number(participants.n) || 0;
+    const cardCount = Number(cards.n);
+    const voteCount = Number(votes.n);
+    const totalCm = commitments.length;
+    const doneCm = commitments.filter(c => c.status === 'done').length;
+    // Participation: cards per participant, saturating at 3 cards each
+    const participation = Math.min(100, Math.round((participantCount ? cardCount / participantCount : 0) / 3 * 100));
+    // Engagement: votes per card, saturating at 1 vote per card
+    const engagement = Math.min(100, Math.round(cardCount ? (voteCount / cardCount) * 100 : 0));
+    // Follow-through: % of commitments completed
+    const followThrough = totalCm ? Math.round(doneCm / totalCm * 100) : 0;
+    const score = Math.round(participation * 0.4 + engagement * 0.3 + followThrough * 0.3);
+    scores.push({
+      retro_id: retro.id, title: retro.title, sprint: retro.sprint, created_at: retro.created_at,
+      participants: participantCount, cards: cardCount, votes: voteCount,
+      commitments_total: totalCm, commitments_done: doneCm,
+      participation, engagement, follow_through: followThrough, score,
+    });
+  }
+  res.json(scores);
+}));
+
+// --- AI-assisted features (heuristic, no external API needed) ---
+const STOP_WORDS = new Set(('a an and are as at be but by for from has have how i if in is it its of on or ' +
+  'that the this to was we what when where which who will with you our your their they them he she not no yes ' +
+  'very just so than then too can could should would will shall may might must do does did done get got make ' +
+  'made really about into over under again more most some such only own same s t don now').split(' '));
+
+const POSITIVE_WORDS = new Set(('good great well awesome love loved excellent happy glad nice amazing better best ' +
+  'win winning success successful improve improved improvement fast smooth clear helpful productive fun easy ' +
+  'solid strong proud enjoy enjoyed efficient reliable fantastic perfect thanks thank appreciate appreciated ' +
+  'like liked useful valuable quick robust').split(' '));
+const NEGATIVE_WORDS = new Set(('bad worse worst hate hated sad angry upset mad frustrated frustrating slow ' +
+  'blocked blocker bug bugs broken fail failed failure issue issues problem problems unclear confusing confused ' +
+  'difficult hard delay delayed late overdue missing lost stuck tedious painful annoying poor weak unstable ' +
+  'crash crashed error errors wrong struggle struggled lack lacked lacking').split(' '));
+
+function tokenize(text) {
+  return String(text).toLowerCase().replace(/[^a-z0-9áéíóúüñ\s]/g, ' ').split(/\s+/)
+    .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+}
+
+function sentimentOf(text) {
+  const words = String(text).toLowerCase().split(/[^a-z]+/);
+  let score = 0;
+  for (const w of words) {
+    if (POSITIVE_WORDS.has(w)) score += 1;
+    if (NEGATIVE_WORDS.has(w)) score -= 1;
+  }
+  return score > 0 ? 'positive' : score < 0 ? 'negative' : 'neutral';
+}
+
+// Auto-group: cluster cards by word-set similarity (Jaccard) and label groups by top keywords
+app.post('/api/retros/:id/auto-group', ah(async (req, res) => {
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
+  if (!(await requireRetroAccess(req, res, retro))) return;
+  const cards = await db.all('SELECT id, content, column_type FROM cards WHERE retro_id = $1', [req.params.id]);
+  const tokenSets = cards.map(c => ({ id: c.id, column_type: c.column_type, tokens: new Set(tokenize(c.content)) }));
+  // Greedy agglomerative clustering: merge cards sharing >= 0.25 Jaccard with any group member
+  const JACCARD_THRESHOLD = 0.25;
+  const groups = [];
+  for (const item of tokenSets) {
+    let placed = false;
+    for (const group of groups) {
+      const similar = group.some(member => {
+        const union = new Set([...item.tokens, ...member.tokens]);
+        if (!union.size) return false;
+        let shared = 0;
+        for (const t of item.tokens) if (member.tokens.has(t)) shared += 1;
+        return shared / union.size >= JACCARD_THRESHOLD;
+      });
+      if (similar) { group.push(item); placed = true; break; }
+    }
+    if (!placed) groups.push([item]);
+  }
+  // Label each group with its most frequent keyword; singletons stay ungrouped
+  let grouped = 0;
+  for (const group of groups) {
+    if (group.length < 2) continue;
+    const freq = {};
+    for (const item of group) for (const t of item.tokens) freq[t] = (freq[t] || 0) + 1;
+    const label = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
+    for (const item of group) {
+      await db.run('UPDATE cards SET group_label = $1 WHERE id = $2', [label, item.id]);
+      grouped += 1;
+    }
+  }
+  const cardsUpdated = await db.all(`
+    SELECT c.*, (SELECT COUNT(*) FROM votes v WHERE v.card_id = c.id) AS votes
+    FROM cards c WHERE c.retro_id = $1 ORDER BY c.created_at`, [req.params.id]);
+  broadcast(retro.id, 'cards_refresh', {});
+  res.json({ grouped, groups: groups.filter(g => g.length >= 2).length, cards: cardsUpdated });
+}));
+
+// Executive summary: top cards per column, sentiment balance and commitment status
+app.get('/api/retros/:id/summary', ah(async (req, res) => {
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
+  if (!(await requireRetroAccess(req, res, retro))) return;
+  const cards = await db.all(`
+    SELECT c.*, (SELECT COUNT(*) FROM votes v WHERE v.card_id = c.id) AS votes
+    FROM cards c WHERE c.retro_id = $1`, [req.params.id]);
+  const commitments = await db.all('SELECT * FROM commitments WHERE retro_id = $1', [req.params.id]);
+  const participants = await db.all('SELECT name FROM participants WHERE retro_id = $1', [req.params.id]);
+  const columns = TEMPLATE_COLUMNS[retro.template] || TEMPLATE_COLUMNS.classic;
+  const labels = columns;
+  const lines = [];
+  lines.push(`# Executive Summary — ${retro.title}`);
+  if (retro.sprint) lines.push(`Sprint: ${retro.sprint}`);
+  lines.push(`Participants: ${participants.length} · Cards: ${cards.length} · Commitments: ${commitments.length} (${commitments.filter(c => c.status === 'done').length} done)`);
+  lines.push('');
+  for (const [col, label] of Object.entries(labels)) {
+    const colCards = cards.filter(c => c.column_type === col).sort((a, b) => b.votes - a.votes);
+    if (!colCards.length) continue;
+    lines.push(`## ${col === 'action' ? 'Top Action Items' : label}`);
+    for (const c of colCards.slice(0, 3)) {
+      lines.push(`- ${c.content} (${c.votes} 👍)`);
+    }
+    lines.push('');
+  }
+  // Sentiment balance across all cards
+  const sentiments = cards.map(c => sentimentOf(c.content));
+  const pos = sentiments.filter(s => s === 'positive').length;
+  const neg = sentiments.filter(c => c === 'negative').length;
+  const mood = cards.length ? Math.round((pos - neg) / cards.length * 100) : 0;
+  lines.push(`## Team Sentiment`);
+  lines.push(`${pos} positive / ${neg} negative / ${sentiments.length - pos - neg} neutral cards → overall mood: ${mood >= 40 ? '😊 Positive' : mood <= -20 ? '😟 Needs attention' : '😐 Mixed'} (${mood > 0 ? '+' : ''}${mood})`);
+  lines.push('');
+  lines.push(`## Commitments`);
+  for (const cm of commitments) {
+    lines.push(`- [${cm.status === 'done' ? 'x' : ' '}] ${cm.description} — ${cm.assignee}${cm.due_date ? ` (due ${cm.due_date})` : ''}`);
+  }
+  res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+  res.send(lines.join('\n'));
+}));
+
+// --- Integrations: Slack/Teams webhook per retro ---
+app.put('/api/retros/:id/webhook', ah(async (req, res) => {
+  const retro = await requireRetroAdmin(req, res);
+  if (!retro) return;
+  const { webhook_url } = req.body;
+  const url = webhook_url ? String(webhook_url).trim() : null;
+  if (url && !/^https:\/\/(hooks\.slack\.com\/|outlook\.office\.com\/|webhook\.office\.com\/|.*\.office\.com\/)/.test(url)) {
+    return res.status(400).json({ error: 'Use a Slack or Microsoft Teams webhook URL (https://hooks.slack.com/... or Teams workflow webhook)' });
+  }
+  await db.run('UPDATE retros SET webhook_url = $1 WHERE id = $2', [url, retro.id]);
+  res.json({ ok: true, webhook_url: url });
+}));
+
+// Fire-and-forget webhook notification (Slack/Teams incoming webhook)
+async function notifyWebhook(retroId, text) {
+  const retro = await db.get('SELECT webhook_url FROM retros WHERE id = $1', [retroId]);
+  if (!retro?.webhook_url) return;
+  try {
+    await fetch(retro.webhook_url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+  } catch (err) {
+    console.error('Webhook notify error:', err.message);
+  }
+}
+
+// --- Commitments CSV export (Jira/Azure DevOps import) ---
+app.get('/api/retros/:id/commitments.csv', ah(async (req, res) => {
+  const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
+  if (!retro) return res.status(404).json({ error: 'Retro not found' });
+  if (req.query.token) req.headers['x-participant-token'] = req.query.token;
+  if (!(await requireRetroAccess(req, res, retro))) return;
+  const rows = await db.all(
+    'SELECT id, description, assignee, due_date, status, created_at, completed_at FROM commitments WHERE retro_id = $1 ORDER BY created_at', [req.params.id]);
+  const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const csv = ['Summary,Assignee,Due Date,Status,Created,Retro']
+    .concat(rows.map(cm => [
+      cm.description, cm.assignee, cm.due_date || '',
+      cm.status === 'done' ? 'Done' : cm.status === 'in_progress' ? 'In Progress' : 'To Do',
+      cm.created_at, retro.title,
+    ].map(esc).join(',')))
+    .join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="retro-${retro.id}-commitments.csv"`);
+  res.send(csv);
 }));
 
 // --- Healthcheck (for Render and uptime monitors) ---

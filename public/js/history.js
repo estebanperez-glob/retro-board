@@ -35,6 +35,51 @@ async function loadHistory() {
     </div>`).join('');
 
   loadEvolution();
+  loadHealthScore();
+}
+
+// Team Health Score: composite 0-100 per retro (participation, engagement, follow-through)
+async function loadHealthScore() {
+  const section = document.getElementById('health-score-section');
+  if (!section) return;
+  let scores;
+  try {
+    scores = await Auth.api('/health-score');
+  } catch {
+    section.innerHTML = '';
+    return;
+  }
+  if (!scores.length) { section.innerHTML = ''; return; }
+  const latest = scores[scores.length - 1];
+  const card = s => {
+    const cls = s.score >= 70 ? 'good' : s.score >= 40 ? 'mid' : 'low';
+    const bar = (label, value) => `
+      <div>
+        <small>${label}: ${value}%</small>
+        <div class="health-bar"><div class="health-bar-fill" style="width:${value}%"></div></div>
+      </div>`;
+    return `
+      <div class="health-card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0;font-size:1rem">${Auth.esc(s.title)}</h3>
+          <span class="health-score ${cls}">${s.score}</span>
+        </div>
+        ${bar('Participation', s.participation)}
+        ${bar('Engagement', s.engagement)}
+        ${bar('Follow-through', s.follow_through)}
+        <div class="health-meta">
+          <span>👥 ${s.participants}</span>
+          <span>🗂 ${s.cards} cards</span>
+          <span>👍 ${s.votes}</span>
+          <span>✅ ${s.commitments_done}/${s.commitments_total} commitments</span>
+        </div>
+        <a class="btn small secondary" href="/retro.html?id=${s.retro_id}" style="margin-top:8px">Open</a>
+      </div>`;
+  };
+  section.innerHTML = `
+    <h3 style="margin-top:8px">💚 Team Health Score</h3>
+    <p class="muted" style="font-size:0.85rem">Composite score: participation (40%) + vote engagement (30%) + commitment follow-through (30%). Latest retro: <strong>${latest.score}</strong>/100.</p>
+    <div class="health-grid">${scores.slice(-6).reverse().map(card).join('')}</div>`;
 }
 
 // Evolution chart: completed commitments per retro (Chart.js, loaded from CDN)
