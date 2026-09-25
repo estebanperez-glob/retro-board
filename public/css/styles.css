@@ -458,6 +458,13 @@ header nav a:hover { color: var(--accent); }
 /* ---------- Drop zones ---------- */
 .cards, .kcards { min-height: 120px; }
 
+/* ---------- Retro actions row (buttons wrap cleanly) ---------- */
+.retro-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.retro-actions .btn { margin-left: 0 !important; }
+
+/* ---------- Templates page (shared layout) ---------- */
+.container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+
 /* ---------- Card groups (auto-grouping) ---------- */
 .group-row { margin-bottom: 6px; }
 .group-badge {

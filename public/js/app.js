@@ -243,7 +243,7 @@ async function renderRetro() {
     <h2 style="margin-top:40px">📋 Commitments</h2>
     <p class="muted">Drag cards between columns. Mark as done to award 10 points!</p>
     <div class="kanban" id="kanban"></div>
-    <div style="margin-top:24px">
+    <div class="retro-actions" style="margin-top:24px">
       <button class="btn" id="add-commitment">+ Add Commitment</button>
       <a class="btn secondary" href="/api/retros/${currentRetroId}/acta?token=${encodeURIComponent(storedToken || '')}" download style="text-decoration:none;display:inline-block;margin-left:8px">⬇ Export Minutes (acta)</a>
       <button class="btn secondary" id="export-pdf" style="margin-left:8px">🖨 Export PDF</button>
@@ -435,13 +435,15 @@ function openEditCardModal(cardId, currentContent) {
     <div class="modal">
       <h3>Edit Card</h3>
       <div class="form-group">
-        <textarea id="card-content">${currentContent}</textarea>
+        <textarea id="card-content"></textarea>
       </div>
       <div class="modal-actions">
         <button class="btn secondary" id="card-cancel">Cancel</button>
         <button class="btn" id="card-save">Save</button>
       </div>
     </div>`;
+  // Set the value via JS (not interpolation) — avoids double-escaping and XSS
+  overlay.querySelector('#card-content').value = currentContent ?? '';
   document.body.appendChild(overlay);
   overlay.querySelector('#card-cancel').onclick = () => overlay.remove();
   overlay.querySelector('#card-save').onclick = async () => {
@@ -604,6 +606,7 @@ function connectWs() {
 function handleLiveEvent(event, payload) {
   switch (event) {
     case 'card_added':
+      document.querySelector(`.cards[data-col="${payload.column_type}"]`)?.querySelector('.empty-column')?.remove();
       document.querySelector(`.cards[data-col="${payload.column_type}"]`)?.insertAdjacentHTML('beforeend', renderCard(payload));
       break;
     case 'card_updated': {
@@ -784,9 +787,9 @@ async function openPrintableActa(retroId) {
 async function showAiSummary() {
   let md;
   try {
-    const res = await fetch(`/api/retros/${currentRetroId}/summary`, {
-      headers: { 'X-Participant-Token': sessionStorage.getItem('retroParticipantToken') || '' },
-    });
+    const headers = { 'X-Participant-Token': sessionStorage.getItem('retroParticipantToken') || '' };
+    if (Auth.token) headers['Authorization'] = `Bearer ${Auth.token}`;
+    const res = await fetch(`/api/retros/${currentRetroId}/summary`, { headers });
     if (!res.ok) throw new Error();
     md = await res.text();
   } catch {

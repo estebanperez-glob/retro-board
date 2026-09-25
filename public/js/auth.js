@@ -73,9 +73,15 @@ const Auth = {
     };
   },
   esc(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    // Escape &, <, >, quotes and backtick — safe for both HTML content and
+    // double-quoted attributes (prevents attribute-injection XSS)
+    return String(text ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/`/g, '&#96;');
   },
 
   // Toast notification (shared; falls back to alert if no #toast element)
