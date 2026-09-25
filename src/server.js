@@ -99,7 +99,7 @@ const authRateLimit = rateLimit({ windowMs: 60000, max: 10 });
 
 // --- Freemium plan limits ---
 const FREE_MAX_RETROS = 5;        // total retros a free user can create
-const FREE_MAX_PARTICIPANTS = 10; // participants per retro on the free plan
+const FREE_MAX_PARTICIPANTS = 25; // participants per retro on the free plan
 
 // Validate that :id route params are numeric retro/card/commitment IDs.
 // Non-numeric IDs (e.g. /retro.html?id=test) would otherwise hit Postgres
