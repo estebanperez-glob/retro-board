@@ -6,6 +6,17 @@ let retroIsAdmin = false;
 let retroJoinCode = null;
 let retroWebhookUrl = null;
 let retroTemplate = 'classic';
+let retroCustomColumns = null; // JSON string when the retro uses custom columns
+
+// Resolve the active board template (custom columns take precedence)
+function currentTemplate() {
+  if (retroCustomColumns) {
+    try {
+      return { name: 'Custom', columns: Object.fromEntries(JSON.parse(retroCustomColumns).map(c => [c.key, c.label])) };
+    } catch { /* fall through to built-in */ }
+  }
+  return TEMPLATES[retroTemplate] || TEMPLATES.classic;
+}
 
 const app = document.getElementById('app');
 
@@ -68,6 +79,7 @@ async function renderHome() {
         <input id="retro-sprint" placeholder="Sprint (optional)" style="max-width:150px">
         <select id="retro-template">
           ${Object.entries(TEMPLATES).map(([id, t]) => `<option value="${id}">${t.name}</option>`).join('')}
+          <option value="custom">Custom columns…</option>
         </select>
         <label class="check-label"><input type="checkbox" id="retro-anon"> Anonymous cards</label>
         <button class="btn" id="create-retro">Create Retro</button>
@@ -86,15 +98,54 @@ async function renderHome() {
     document.getElementById('retro-template').value = tplParam;
   }
 
+  // Custom columns editor: shown when the "Custom columns…" option is selected
+  const templateSelect = document.getElementById('retro-template');
+  const customEditor = document.createElement('div');
+  customEditor.id = 'custom-columns-editor';
+  customEditor.className = 'custom-columns-editor hidden';
+  customEditor.innerHTML = `
+    <p class="muted" style="font-size:0.85rem;margin:8px 0 4px">Define 2-8 columns (label = what participants see):</p>
+    <div id="custom-col-rows"></div>
+    <button class="btn small secondary" id="add-custom-col">+ Add column</button>`;
+  templateSelect.closest('.join-form').after(customEditor);
+  const rowsEl = document.getElementById('custom-col-rows');
+  const addRow = (label = '') => {
+    const row = document.createElement('div');
+    row.className = 'custom-col-row';
+    row.innerHTML = `<input class="custom-col-label" placeholder="Column label (e.g. Risks)" maxlength="40">
+      <button class="btn small danger remove-col" title="Remove">✕</button>`;
+    row.querySelector('.remove-col').onclick = () => row.remove();
+    if (label) row.querySelector('input').value = label;
+    rowsEl.appendChild(row);
+  };
+  addRow(); addRow(); // start with two rows
+  document.getElementById('add-custom-col').onclick = () => {
+    if (rowsEl.children.length >= 8) return toast('Maximum 8 columns');
+    addRow();
+  };
+  templateSelect.addEventListener('change', () => {
+    customEditor.classList.toggle('hidden', templateSelect.value !== 'custom');
+  });
+
   document.getElementById('create-retro').onclick = async () => {
     if (!Auth.token) return Auth.openAuthModal('register');
     const title = document.getElementById('retro-title').value.trim();
-    if (!title) return toast('Please enter a title', 'points');
     const sprint = document.getElementById('retro-sprint').value.trim();
     const template = document.getElementById('retro-template').value;
     const is_anonymous = document.getElementById('retro-anon').checked;
-    await createRetroWithCarryOver(title, sprint, template, is_anonymous);
+    let custom_columns = null;
+    if (template === 'custom') {
+      const labels = [...customEditor.querySelectorAll('.custom-col-row input')]
+        .map(inp => inp.value.trim()).filter(Boolean);
+      if (labels.length < 2) return toast('Custom template needs at least 2 columns', 'points');
+      custom_columns = JSON.stringify(labels.map(label => ({
+        key: label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'col',
+        label,
+      })));
+    }
+    await createRetroWithCarryOver(title, sprint, template, is_anonymous, custom_columns);
   };
+
   document.getElementById('join-retro').onclick = () => {
     const id = document.getElementById('join-id').value.trim();
     if (id) location.href = `/retro.html?id=${id}`;
@@ -104,7 +155,7 @@ async function renderHome() {
 }
 
 // Create a retro; if the previous retro has pending commitments, offer to carry them over
-async function createRetroWithCarryOver(title, sprint, template, is_anonymous) {
+async function createRetroWithCarryOver(title, sprint, template, is_anonymous, custom_columns = null) {
   const retros = await Auth.api('/retros');
   const previous = retros.find(r => r.status === 'open' && r.card_count > 0);
   let carry_over_from = null;
@@ -120,7 +171,7 @@ async function createRetroWithCarryOver(title, sprint, template, is_anonymous) {
   }
   const retro = await Auth.api('/retros', {
     method: 'POST',
-    body: JSON.stringify({ title, sprint, template, is_anonymous, carry_over_from }),
+    body: JSON.stringify({ title, sprint, template, is_anonymous, carry_over_from, custom_columns }),
   });
   // Store the admin's participant token so they land directly in the board
   sessionStorage.setItem('retroParticipantToken', retro.participant_token);
@@ -206,6 +257,7 @@ async function renderRetro() {
     retroJoinCode = retro.join_code || null;
     retroWebhookUrl = retro.webhook_url || null;
     retroTemplate = retro.template || 'classic';
+    retroCustomColumns = retro.custom_columns || null;
   } catch (err) {
     return renderJoinScreen(err.message);
   }
@@ -213,7 +265,9 @@ async function renderRetro() {
   const participants = await Auth.api(`/retros/${currentRetroId}/participants`);
   const cards = await Auth.api(`/retros/${currentRetroId}/cards`);
   const commitments = await Auth.api(`/retros/${currentRetroId}/commitments`);
-  const template = TEMPLATES[retro.template] || TEMPLATES.classic;
+  const template = retro.custom_columns
+    ? { name: 'Custom', columns: Object.fromEntries(JSON.parse(retro.custom_columns).map(c => [c.key, c.label])) }
+    : (TEMPLATES[retro.template] || TEMPLATES.classic);
 
   app.innerHTML = `
     <div class="retro-header">
@@ -355,6 +409,7 @@ function renderBoard(cards, template) {
   // Drag & drop via delegation on the board container (survives re-renders)
   if (!board.dataset.wired) {
     board.dataset.wired = 'true';
+    wireTouchMove(board); // touch fallback: long-press → "Move to…" menu
     board.addEventListener('dragstart', e => {
       const cardEl = e.target.closest('.card');
       if (!cardEl) return;
@@ -408,6 +463,55 @@ function moveCardElement(cardId, columnType) {
   zone.appendChild(cardEl);
   // Remove the "empty column" placeholder if it exists in the target zone
   zone.querySelector('.empty-column')?.remove();
+}
+
+// Touch fallback for drag & drop: long-press on a card opens a "Move to…" menu.
+// HTML5 drag events don't fire on touch screens, so this covers phones/tablets.
+function wireTouchMove(board) {
+  let pressTimer = null;
+  let longPressed = false;
+  board.addEventListener('touchstart', e => {
+    const cardEl = e.target.closest('.card');
+    if (!cardEl) return;
+    longPressed = false;
+    pressTimer = setTimeout(() => {
+      longPressed = true;
+      if (navigator.vibrate) navigator.vibrate(30);
+      showMoveMenu(cardEl);
+    }, 500);
+  }, { passive: true });
+  board.addEventListener('touchmove', () => {
+    clearTimeout(pressTimer); // scrolling cancels the long-press
+  }, { passive: true });
+  board.addEventListener('touchend', () => clearTimeout(pressTimer));
+  board.addEventListener('touchcancel', () => clearTimeout(pressTimer));
+
+  function showMoveMenu(cardEl) {
+    document.getElementById('touch-move-menu')?.remove();
+    const columns = [...document.querySelectorAll('.column')];
+    const current = cardEl.closest('.column')?.dataset.col;
+    const menu = document.createElement('div');
+    menu.id = 'touch-move-menu';
+    menu.className = 'touch-move-menu';
+    menu.innerHTML = `
+      <p class="touch-menu-title">Move card to…</p>
+      ${columns.filter(c => c.dataset.col !== current).map(c =>
+        `<button class="btn small secondary" data-col="${c.dataset.col}">${c.querySelector('h3')?.textContent || c.dataset.col}</button>`
+      ).join('')}
+      <button class="btn small danger" id="touch-move-cancel">Cancel</button>`;
+    document.body.appendChild(menu);
+    menu.addEventListener('click', async e => {
+      const btn = e.target.closest('button[data-col]');
+      if (btn) {
+        try {
+          await Auth.api(`/cards/${cardEl.dataset.id}`, { method: 'PUT', body: JSON.stringify({ column_type: btn.dataset.col }) });
+        } catch (err) {
+          toast(err.message, 'points');
+        }
+      }
+      menu.remove();
+    });
+  }
 }
 
 function renderCard(card) {
@@ -668,7 +772,7 @@ async function refreshParticipants() {
 
 async function refreshCards() {
   const cards = await Auth.api(`/retros/${currentRetroId}/cards`);
-  renderBoard(cards, TEMPLATES[retroTemplate] || TEMPLATES.classic);
+  renderBoard(cards, currentTemplate());
 }
 
 // ---------- Retro actions ----------
@@ -821,7 +925,7 @@ async function autoGroupCards() {
     const result = await Auth.api(`/retros/${currentRetroId}/auto-group`, { method: 'POST' });
     toast(`Grouped ${result.grouped} cards into ${result.groups} groups 🗂`);
     const cards = await Auth.api(`/retros/${currentRetroId}/cards`);
-    renderBoard(cards, TEMPLATES[retroTemplate] || TEMPLATES.classic);
+    renderBoard(cards, currentTemplate());
   } catch (err) {
     toast(err.message, 'points');
   }

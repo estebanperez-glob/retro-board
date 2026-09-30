@@ -255,6 +255,7 @@ tr:first-child td { font-weight: bold; color: var(--yellow); }
   border-left: 4px solid var(--green);
 }
 .dash-item.overdue { border-left-color: var(--red); }
+.dash-item.done { border-left-color: var(--muted); opacity: 0.7; }
 .dash-desc { margin-bottom: 6px; word-break: break-word; }
 .dash-meta { display: flex; gap: 16px; align-items: center; font-size: 0.85rem; color: var(--muted); flex-wrap: wrap; }
 .dash-meta .assignee { color: var(--accent); font-weight: 600; }
@@ -406,6 +407,32 @@ header nav a:hover { color: var(--accent); }
   border-radius: 8px; margin: 4px 0;
 }
 
+/* ---------- Custom columns editor (home) ---------- */
+.custom-columns-editor { margin-top: 12px; }
+.custom-columns-editor.hidden { display: none; }
+.custom-col-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.custom-col-row input { flex: 1; }
+
+/* ---------- Touch move menu (mobile fallback for drag & drop) ---------- */
+.touch-move-menu {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  border-radius: 14px;
+  padding: 16px;
+  min-width: 220px;
+  max-width: 90vw;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.touch-menu-title { font-weight: 700; margin-bottom: 8px; }
+.touch-move-menu .btn { width: 100%; text-align: left; }
+
 /* ---------- Mobile responsiveness ---------- */
 @media (max-width: 720px) {
   header {
@@ -423,6 +450,17 @@ header nav a:hover { color: var(--accent); }
   .modal { padding: 20px; }
   .account-wrap { margin: 16px auto; }
   .graffiti-title { transform: none; }
+  /* Retro board on phones: full-width controls, compact actions, touch-friendly */
+  main { padding: 16px 12px; }
+  .retro-actions .btn { flex: 1 1 auto; }
+  .add-card-form { display: flex; flex-direction: column; gap: 8px; }
+  .add-card-form textarea { width: 100%; }
+  #timer-widget { right: 10px; bottom: 10px; min-width: 200px; padding: 12px; }
+  .timer-display { font-size: 2rem; }
+  .kcard { font-size: 0.9rem; }
+  .invite-box { flex-direction: column; align-items: stretch; }
+  .invite-box input { width: 100%; }
+  .touch-move-menu { position: fixed; }
 }
 
 /* ---------- Drag & drop ---------- */

@@ -44,6 +44,7 @@ const Auth = {
       <a href="/">Home</a>
       <a href="/history.html">History</a>
       <a href="/leaderboard.html">Leaderboard</a>
+      ${this.username ? '<a href="/my-commitments.html">My Commitments</a>' : ''}
       ${authArea}
       <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">🌙</button>`;
     const themeBtn = document.getElementById('theme-toggle');

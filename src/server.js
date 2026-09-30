@@ -299,7 +299,7 @@ app.get('/api/retros', ah(async (req, res) => {
 }));
 
 app.post('/api/retros', ah(async (req, res) => {
-  const { title, sprint, carry_over_from, template, is_anonymous } = req.body;
+  const { title, sprint, carry_over_from, template, is_anonymous, custom_columns } = req.body;
   if (!title) return res.status(400).json({ error: 'Title is required' });
   if (String(title).trim().length > 100) return res.status(400).json({ error: 'Title must be at most 100 characters' });
   const user = await getUser(req);
@@ -314,10 +314,21 @@ app.post('/api/retros', ah(async (req, res) => {
   }
   const validTemplates = ['classic', 'ssc', 'msg', '4ls'];
   const tpl = validTemplates.includes(template) ? template : 'classic';
+  // Custom columns: JSON array of {key,label} (2-8 columns). Takes precedence over the template.
+  let customColumnsJson = null;
+  if (custom_columns !== undefined && custom_columns !== null && String(custom_columns).trim() !== '') {
+    let parsed;
+    try { parsed = JSON.parse(custom_columns); } catch { return res.status(400).json({ error: 'custom_columns must be a JSON array of {key,label}' }); }
+    if (!Array.isArray(parsed) || parsed.length < 2 || parsed.length > 8 ||
+        !parsed.every(c => c && typeof c.key === 'string' && c.key.trim() && typeof c.label === 'string' && c.label.trim())) {
+      return res.status(400).json({ error: 'custom_columns must be an array of 2-8 {key,label} objects' });
+    }
+    customColumnsJson = JSON.stringify(parsed.map(c => ({ key: c.key.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 30), label: String(c.label).trim().slice(0, 40) })));
+  }
   const joinCode = crypto.randomBytes(5).toString('hex'); // 10-char invitation code
   const info = await db.run(
-    'INSERT INTO retros (title, sprint, created_by, template, is_anonymous, join_code) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-    [title, sprint || null, user.username, tpl, !!is_anonymous, joinCode]);
+    'INSERT INTO retros (title, sprint, created_by, template, is_anonymous, join_code, custom_columns) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+    [title, sprint || null, user.username, tpl, !!is_anonymous, joinCode, customColumnsJson]);
   const retroId = Number(info.lastInsertRowid);
 
   // The admin automatically becomes a member so they can add cards and vote
@@ -456,6 +467,49 @@ const TEMPLATE_COLUMNS = {
   '4ls': ['liked', 'learned', 'lacked', 'longed_for'],
 };
 
+// Human-readable labels for the built-in template columns (acta/summary exports)
+const TEMPLATE_LABELS = {
+  classic: { went_well: 'What Went Well', didnt_go_well: "What Didn't Go Well", action: 'Action Items' },
+  ssc: { start_doing: 'Start Doing', stop_doing: 'Stop Doing', continue_doing: 'Continue Doing' },
+  msg: { mad: 'Mad', sad: 'Sad', glad: 'Glad' },
+  '4ls': { liked: 'Liked', learned: 'Learned', lacked: 'Lacked', longed_for: 'Longed For' },
+};
+
+// Parse the custom_columns JSON of a retro (array of {key,label}).
+// Returns { columns, labels } when valid, or null when absent/invalid.
+function parseCustomColumns(json) {
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json);
+    if (Array.isArray(parsed) && parsed.length >= 1 && parsed.length <= 8 &&
+        parsed.every(c => c && typeof c.key === 'string' && c.key && c.label)) {
+      return {
+        columns: parsed.map(p => String(p.key)),
+        labels: Object.fromEntries(parsed.map(p => [String(p.key), String(p.label)])),
+      };
+    }
+  } catch { /* invalid JSON → built-in */ }
+  return null;
+}
+
+// Resolve the valid column types for a retro (custom columns take precedence)
+function columnsOf(retro) {
+  if (retro.custom_columns) {
+    const parsed = parseCustomColumns(retro.custom_columns);
+    if (parsed) return parsed.columns;
+  }
+  return TEMPLATE_COLUMNS[retro.template] || TEMPLATE_COLUMNS.classic;
+}
+
+// Resolve the column list + labels of a retro (custom columns take precedence)
+function resolveColumns(retro) {
+  if (retro.custom_columns) {
+    const parsed = parseCustomColumns(retro.custom_columns);
+    if (parsed) return parsed;
+  }
+  return { columns: TEMPLATE_COLUMNS[retro.template] || TEMPLATE_COLUMNS.classic, labels: null };
+}
+
 app.get('/api/retros/:id/cards', ah(async (req, res) => {
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
   if (!(await requireRetroAccess(req, res, retro))) return;
@@ -474,8 +528,7 @@ app.post('/api/retros/:id/cards', ah(async (req, res) => {
   const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
   const access = await requireRetroAccess(req, res, retro);
   if (!access) return;
-  const validColumns = TEMPLATE_COLUMNS[retro.template] || TEMPLATE_COLUMNS.classic;
-  if (!validColumns.includes(column_type))
+  if (!columnsOf(retro).includes(column_type))
     return res.status(400).json({ error: 'Invalid column' });
   if (!content) return res.status(400).json({ error: 'Content is required' });
   if (String(content).trim().length > 500) return res.status(400).json({ error: 'Card content must be at most 500 characters' });
@@ -505,8 +558,7 @@ app.put('/api/cards/:id', ah(async (req, res) => {
   }
   // Moving between columns is allowed for any participant; editing content only author/admin
   if (column_type !== undefined) {
-    const validColumns = TEMPLATE_COLUMNS[retro.template] || TEMPLATE_COLUMNS.classic;
-    if (!validColumns.includes(column_type))
+    if (!columnsOf(retro).includes(column_type))
       return res.status(400).json({ error: 'Invalid column' });
   }
   const newColumn = column_type !== undefined ? column_type : card.column_type;
@@ -666,6 +718,22 @@ app.get('/api/commitments-dashboard', ah(async (req, res) => {
   res.json(rows);
 }));
 
+// --- My Commitments: all commitments assigned to the logged-in user across their retros ---
+app.get('/api/my-commitments', ah(async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Log in to see your commitments' });
+  const rows = await db.all(`
+    SELECT cm.id, cm.description, cm.assignee, cm.due_date, cm.status, cm.retro_id,
+      r.title AS retro_title, r.status AS retro_status,
+      CASE WHEN cm.due_date IS NOT NULL AND cm.status != 'done' AND cm.due_date < to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+        THEN TRUE ELSE FALSE END AS is_overdue
+    FROM commitments cm JOIN retros r ON r.id = cm.retro_id
+    WHERE cm.assignee = $1 AND r.created_by = $2
+    ORDER BY CASE cm.status WHEN 'done' THEN 1 ELSE 0 END, is_overdue DESC, cm.due_date ASC NULLS LAST, cm.created_at ASC`,
+    [user.username, user.username]);
+  res.json(rows);
+}));
+
 // --- Evolution: completed commitments per retro (for the history chart) ---
 app.get('/api/evolution', ah(async (req, res) => {
   const user = await getUser(req);
@@ -725,14 +793,9 @@ app.get('/api/retros/:id/acta', ah(async (req, res) => {
   lines.push(`**Date:** ${retro.created_at}`);
   lines.push(`**Participants:** ${participants.map(p => p.name).join(', ') || '—'}`);
   lines.push('');
-  // Iterate the retro's template columns so no cards are left out
-  const TEMPLATE_COLUMNS = {
-    classic: { went_well: 'What Went Well', didnt_go_well: "What Didn't Go Well", action: 'Action Items' },
-    ssc: { start_doing: 'Start Doing', stop_doing: 'Stop Doing', continue_doing: 'Continue Doing' },
-    msg: { mad: 'Mad', sad: 'Sad', glad: 'Glad' },
-    '4ls': { liked: 'Liked', learned: 'Learned', lacked: 'Lacked', longed_for: 'Longed For' },
-  };
-  const columns = TEMPLATE_COLUMNS[retro.template] || TEMPLATE_COLUMNS.classic;
+  // Iterate the retro's columns (custom or template) so no cards are left out
+  const resolved = resolveColumns(retro);
+  const columns = resolved.labels || TEMPLATE_LABELS[retro.template] || TEMPLATE_LABELS.classic;
   for (const [col, label] of Object.entries(columns)) {
     lines.push(`## ${label}`);
     for (const c of cards.filter(c => c.column_type === col)) {
@@ -866,8 +929,8 @@ app.get('/api/retros/:id/summary', ah(async (req, res) => {
     FROM cards c WHERE c.retro_id = $1`, [req.params.id]);
   const commitments = await db.all('SELECT * FROM commitments WHERE retro_id = $1', [req.params.id]);
   const participants = await db.all('SELECT name FROM participants WHERE retro_id = $1', [req.params.id]);
-  const columns = TEMPLATE_COLUMNS[retro.template] || TEMPLATE_COLUMNS.classic;
-  const labels = columns;
+  const resolved = resolveColumns(retro);
+  const labels = resolved.labels || TEMPLATE_LABELS[retro.template] || TEMPLATE_LABELS.classic;
   const lines = [];
   lines.push(`# Executive Summary — ${retro.title}`);
   if (retro.sprint) lines.push(`Sprint: ${retro.sprint}`);
@@ -1025,10 +1088,30 @@ async function notifyOverdueCommitments() {
   // Check every 6 hours; also run once shortly after boot
   setTimeout(notifyOverdueCommitments, 30 * 1000);
   setInterval(notifyOverdueCommitments, 6 * 60 * 60 * 1000);
+  startKeepAlive();
 })().catch(err => {
   console.error('Failed to start:', err.message);
   process.exit(1);
 });
+
+// --- Keep-alive: ping ourselves periodically so Render's free tier doesn't
+// sleep after 15 min of inactivity (cold start ~30-50s). Enabled only when
+// RENDER_EXTERNAL_URL is present (set automatically by Render) and not
+// explicitly disabled with KEEP_ALIVE_DISABLED=true.
+function startKeepAlive() {
+  const url = process.env.RENDER_EXTERNAL_URL;
+  if (!url || process.env.KEEP_ALIVE_DISABLED === 'true') return;
+  const intervalMs = 10 * 60 * 1000; // every 10 min (well under the 15 min idle limit)
+  setInterval(async () => {
+    try {
+      const res = await fetch(`${url}/api/health`);
+      if (!res.ok) console.error(`Keep-alive ping got HTTP ${res.status}`);
+    } catch (err) {
+      console.error('Keep-alive ping failed:', err.message);
+    }
+  }, intervalMs);
+  console.log(`Keep-alive enabled: pinging ${url}/api/health every 10 min`);
+}
 
 // --- Graceful shutdown (Render sends SIGTERM on deploys/restarts) ---
 function shutdown(signal) {
