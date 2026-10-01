@@ -84,6 +84,14 @@ CREATE TABLE IF NOT EXISTS sessions (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'))
 );
+
+CREATE TABLE IF NOT EXISTS page_views (
+  id SERIAL PRIMARY KEY,
+  page TEXT NOT NULL,
+  day TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD')),
+  count INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(page, day)
+);
 `;
 
 async function initSchema() {
@@ -103,6 +111,8 @@ async function initSchema() {
     'ALTER TABLE cards ADD COLUMN IF NOT EXISTS group_label TEXT',
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS webhook_url TEXT',
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS custom_columns TEXT',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS is_master BOOLEAN NOT NULL DEFAULT FALSE',
+    `CREATE INDEX IF NOT EXISTS idx_page_views_day ON page_views(day)`,
     // Backfill: generate join codes and participant tokens for existing rows
     `UPDATE retros SET join_code = substr(md5(random()::text || clock_timestamp()::text), 1, 10) WHERE join_code IS NULL`,
     `UPDATE participants SET access_token = md5(random()::text || clock_timestamp()::text || id::text) WHERE access_token IS NULL`,

@@ -96,6 +96,7 @@ setInterval(() => {
 }, 5 * 60000).unref();
 
 const authRateLimit = rateLimit({ windowMs: 60000, max: 10 });
+const trackRateLimit = rateLimit({ windowMs: 60000, max: 60 }); // page loads are infrequent; generous cap
 
 // --- Freemium plan limits ---
 const FREE_MAX_RETROS = 5;        // total retros a free user can create
@@ -119,6 +120,26 @@ app.use('/api/cards/:id', validateNumericId('id'));
 app.use('/api/commitments/:id', validateNumericId('id'));
 
 // --- Users ---
+// Master user: sees the usage stats panel. The first registered user is NOT
+// automatically master; promote via SQL: UPDATE users SET is_master = TRUE WHERE username = '...'
+async function requireMaster(req, res) {
+  const user = await getUser(req);
+  if (!user) { res.status(401).json({ error: 'Log in required' }); return null; }
+  if (!user.is_master) { res.status(403).json({ error: 'Master access required' }); return null; }
+  return user;
+}
+
+// Page-view tracking beacon: public, no cookies, no PII. Aggregates per page
+// per day via upsert so the table stays tiny.
+app.post('/api/track', trackRateLimit, ah(async (req, res) => {
+  const page = String(req.body?.page || '').trim().slice(0, 60).replace(/[^a-z0-9_-]/gi, '') || 'home';
+  await db.run(
+    `INSERT INTO page_views (page, day, count) VALUES ($1, to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD'), 1)
+     ON CONFLICT (page, day) DO UPDATE SET count = page_views.count + 1`,
+    [page]);
+  res.status(204).end();
+}));
+
 app.post('/api/register', authRateLimit, ah(async (req, res) => {
   const { username, password, security_question, security_answer } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password are required' });
@@ -716,6 +737,40 @@ app.get('/api/commitments-dashboard', ah(async (req, res) => {
     WHERE cm.status != 'done' AND r.created_by = $1
     ORDER BY is_overdue DESC, cm.due_date ASC NULLS LAST, cm.created_at ASC`, [user.username]);
   res.json(rows);
+}));
+
+// --- Usage stats (master only): product metrics + page views ---
+app.get('/api/stats', ah(async (req, res) => {
+  if (!(await requireMaster(req, res))) return;
+  const [totals, activity, topPages, topUsers] = await Promise.all([
+    db.get(`
+      SELECT
+        (SELECT COUNT(*) FROM users) AS registered_users,
+        (SELECT COUNT(DISTINCT name) FROM participants) AS unique_participants,
+        (SELECT COUNT(*) FROM retros) AS total_retros,
+        (SELECT COUNT(*) FROM retros WHERE status = 'open') AS open_retros,
+        (SELECT COUNT(*) FROM cards) AS total_cards,
+        (SELECT COUNT(*) FROM commitments) AS total_commitments,
+        (SELECT COUNT(*) FROM commitments WHERE status = 'done') AS done_commitments,
+        (SELECT COALESCE(SUM(count), 0) FROM page_views) AS total_page_views`),
+    db.all(`
+      SELECT day, SUM(count)::int AS views FROM page_views
+      WHERE day >= to_char(now() AT TIME ZONE 'UTC' - INTERVAL '30 days', 'YYYY-MM-DD')
+      GROUP BY day ORDER BY day`),
+    db.all(`
+      SELECT page, SUM(count)::int AS views FROM page_views
+      GROUP BY page ORDER BY views DESC LIMIT 10`),
+    db.all(`
+      SELECT p.name,
+        COUNT(DISTINCT p.retro_id) AS retros_participated,
+        (SELECT COUNT(*) FROM commitments cm WHERE cm.assignee = p.name AND cm.status = 'done') AS commitments_done,
+        (SELECT COUNT(*) FROM points pt WHERE pt.participant_name = p.name) AS points
+      FROM participants p
+      GROUP BY p.name
+      ORDER BY commitments_done DESC, retros_participated DESC
+      LIMIT 10`),
+  ]);
+  res.json({ totals, activity, topPages, topUsers });
 }));
 
 // --- My Commitments: all commitments assigned to the logged-in user across their retros ---

@@ -244,3 +244,33 @@ const Auth = {
 };
 Auth.initTheme();
 Auth.renderNav();
+
+// Show the "Usage Stats" link only to the master user (users.is_master)
+(async () => {
+  try {
+    if (!Auth.token) return;
+    const { user } = await Auth.api('/me');
+    if (user?.is_master) {
+      const nav = document.querySelector('header nav');
+      if (nav && !nav.querySelector('a[href="/admin.html"]')) {
+        const logout = nav.querySelector('#nav-logout');
+        const link = document.createElement('a');
+        link.href = '/admin.html';
+        link.textContent = 'Usage Stats';
+        logout ? logout.before(link) : nav.appendChild(link);
+      }
+    }
+  } catch { /* nav link is cosmetic; ignore */ }
+})();
+
+// Page-view tracking: fire-and-forget beacon, no cookies, no PII.
+// The server aggregates per page per day (UNIQUE(page, day) upsert).
+try {
+  const page = location.pathname === '/' ? 'home' : location.pathname.replace(/^\//, '').replace(/\.html$/, '') || 'home';
+  fetch('/api/track', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ page }),
+    keepalive: true,
+  }).catch(() => {});
+} catch { /* tracking must never break the page */ }
