@@ -34,7 +34,7 @@ async function getUser(req) {
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return null;
   const row = await db.get(
-    `SELECT u.id, u.username FROM sessions s JOIN users u ON u.id = s.user_id
+    `SELECT u.id, u.username, u.is_master FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.token = $1 AND s.created_at >= to_char(now() AT TIME ZONE 'UTC' - interval '30 days', 'YYYY-MM-DD HH24:MI:SS')`,
     [token]);
   return row || null;
