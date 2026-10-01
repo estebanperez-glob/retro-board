@@ -68,4 +68,74 @@ async function loadStats() {
     </div>`;
 }
 
+// ---------- Users tab ----------
+async function loadUsers() {
+  const el = document.getElementById('users-content');
+  el.innerHTML = '<p class="muted">Loading…</p>';
+  let users;
+  try {
+    users = await Auth.api('/admin/users');
+  } catch (err) {
+    el.innerHTML = `<p class="muted">🔒 ${Auth.esc(err.message)}</p>`;
+    return;
+  }
+  el.innerHTML = `
+    <table class="users-table">
+      <thead><tr>
+        <th>Username</th><th>Email</th><th>Master</th><th>Retros</th><th>Registered</th><th>Actions</th>
+      </thead>
+      <tbody>
+        ${users.map(u => `
+          <tr>
+            <td>👤 ${Auth.esc(u.username)}${u.is_master ? ' ⭐' : ''}</td>
+            <td>${Auth.esc(u.email || '—')}</td>
+            <td>${u.is_master ? '⭐' : ''}</td>
+            <td>${u.retros_created}</td>
+            <td>${(u.created_at || '').slice(0, 10)}</td>
+            <td class="users-actions">
+              <button class="btn btn-small" onclick="editUser(${u.id}, '${Auth.esc(u.username)}', '${Auth.esc(u.email || '')}', ${u.is_master})">Edit</button>
+              <button class="btn btn-small btn-danger" onclick="deleteUser(${u.id}, '${Auth.esc(u.username)}')">Delete</button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function editUser(id, username, email) {
+  const newPassword = prompt(`New password for ${username} (leave empty to keep current):`);
+  if (newPassword === null) return;
+  if (newPassword && newPassword.length < 8) return alert('Password must be at least 8 characters');
+  const newEmail = prompt(`Email for ${username}:`, email || '');
+  if (newEmail === null) return;
+  const body = {};
+  if (newPassword) body.password = newPassword;
+  if (newEmail !== email) body.email = newEmail.trim();
+  if (!Object.keys(body).length) return;
+  Auth.api(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(body) })
+    .then(() => { Auth.toast('User updated ✅'); loadUsers(); })
+    .catch(err => Auth.toast(err.message));
+}
+
+async function deleteUser(id, username) {
+  if (!confirm(`Delete user "${username}"? Their retros will be reassigned to you so history is kept.`)) return;
+  try {
+    await Auth.api(`/admin/users/${id}`, { method: 'DELETE' });
+    Auth.toast('User deleted — their retros are now yours');
+    loadUsers();
+  } catch (err) {
+    Auth.toast(err.message);
+  }
+}
+
+// ---------- Tabs ----------
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    const isStats = btn.dataset.tab === 'stats';
+    document.getElementById('stats-content').classList.toggle('hidden', !isStats);
+    document.getElementById('users-content').classList.toggle('hidden', isStats);
+    if (!isStats) loadUsers();
+  };
+});
+
 loadStats();

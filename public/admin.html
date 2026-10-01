@@ -16,7 +16,12 @@
   <main id="app">
     <h2>📊 Usage Stats</h2>
     <p class="muted">Administrative panel — usage metrics across the whole tool.</p>
+    <div class="admin-tabs">
+      <button class="tab-btn active" data-tab="stats">Overview</button>
+      <button class="tab-btn" data-tab="users">Users</button>
+    </div>
     <div id="stats-content"><p class="muted">Loading…</p></div>
+    <div id="users-content" class="hidden"></div>
   </main>
   <div id="toast" class="toast hidden"></div>
   <script src="/js/auth.js"></script>
