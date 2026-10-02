@@ -843,6 +843,21 @@ app.get('/api/my-commitments', ah(async (req, res) => {
   res.json(rows);
 }));
 
+// --- Overdue badge: count of overdue commitments for the logged-in user ---
+app.get('/api/my-overdue-count', ah(async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Log in to see your overdue commitments' });
+  const row = await db.get(`
+    SELECT COUNT(*) AS count
+    FROM commitments cm JOIN retros r ON r.id = cm.retro_id
+    WHERE cm.assignee = $1 AND r.created_by = $2
+      AND cm.status != 'done'
+      AND cm.due_date IS NOT NULL
+      AND cm.due_date < to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD')`,
+    [user.username, user.username]);
+  res.json({ count: Number(row.count) });
+}));
+
 // --- Evolution: completed commitments per retro (for the history chart) ---
 app.get('/api/evolution', ah(async (req, res) => {
   const user = await getUser(req);

@@ -222,6 +222,13 @@ tr:first-child td { font-weight: bold; color: var(--yellow); }
 
 /* Nav auth area */
 .nav-user { color: var(--accent); font-weight: 600; margin-left: 24px; }
+.nav-badge {
+  display: inline-block; margin-left: 6px;
+  background: var(--red); color: white;
+  border-radius: 999px; padding: 0 7px;
+  font-size: 0.72rem; font-weight: 700; line-height: 1.5;
+  vertical-align: middle;
+}
 .check-label {
   display: flex; align-items: center; gap: 6px;
   color: var(--muted); font-size: 0.9rem; cursor: pointer;

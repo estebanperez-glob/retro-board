@@ -245,7 +245,8 @@ const Auth = {
 Auth.initTheme();
 Auth.renderNav();
 
-// Show the "Usage Stats" link only to the master user (users.is_master)
+// Show the "Usage Stats" link only to the master user (users.is_master),
+// and the overdue-commitments badge on "My Commitments" for every user.
 (async () => {
   try {
     if (!Auth.token) return;
@@ -261,6 +262,22 @@ Auth.renderNav();
       }
     }
   } catch { /* nav link is cosmetic; ignore */ }
+
+  // Overdue badge on the "My Commitments" nav link
+  try {
+    if (!Auth.token) return;
+    const { count } = await Auth.api('/my-overdue-count');
+    if (count > 0) {
+      const link = document.querySelector('header nav a[href="/my-commitments.html"]');
+      if (link && !link.querySelector('.nav-badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'nav-badge';
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.title = `You have ${count} overdue commitment${count === 1 ? '' : 's'}`;
+        link.appendChild(badge);
+      }
+    }
+  } catch { /* badge is cosmetic; ignore */ }
 })();
 
 // Page-view tracking: fire-and-forget beacon, no cookies, no PII.
