@@ -113,9 +113,10 @@ async function initSchema() {
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS custom_columns TEXT',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS is_master BOOLEAN NOT NULL DEFAULT FALSE',
     `CREATE INDEX IF NOT EXISTS idx_page_views_day ON page_views(day)`,
-    // Backfill: generate join codes and participant tokens for existing rows
-    `UPDATE retros SET join_code = substr(md5(random()::text || clock_timestamp()::text), 1, 10) WHERE join_code IS NULL`,
-    `UPDATE participants SET access_token = md5(random()::text || clock_timestamp()::text || id::text) WHERE access_token IS NULL`,
+    // Backfill: generate join codes and participant tokens for existing rows.
+    // Guarded so the UPDATE only runs when there are actually rows to fix.
+    `UPDATE retros SET join_code = substr(md5(random()::text || clock_timestamp()::text), 1, 10) WHERE join_code IS NULL AND EXISTS (SELECT 1 FROM retros WHERE join_code IS NULL)`,
+    `UPDATE participants SET access_token = md5(random()::text || clock_timestamp()::text || id::text) WHERE access_token IS NULL AND EXISTS (SELECT 1 FROM participants WHERE access_token IS NULL)`,
     // Indexes on FK columns (speed up joins and per-retro queries)
     `CREATE INDEX IF NOT EXISTS idx_cards_retro_id ON cards(retro_id)`,
     `CREATE INDEX IF NOT EXISTS idx_votes_card_id ON votes(card_id)`,
