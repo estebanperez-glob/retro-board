@@ -2,7 +2,7 @@
 const crypto = require('crypto');
 const {
   db, ah, FREE_MAX_RETROS, FREE_MAX_PARTICIPANTS,
-  getUser, requireRetroAccess, requireRetroAdmin,
+  getUser, getParticipant, requireRetroAccess, requireRetroAdmin,
 } = require('../helpers');
 const { broadcast } = require('../ws');
 
@@ -165,8 +165,34 @@ function register(app) {
     const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
     if (!(await requireRetroAccess(req, res, retro))) return;
     const rows = await db.all(
-      'SELECT name, joined_at FROM participants WHERE retro_id = $1 ORDER BY joined_at', [req.params.id]);
+      'SELECT name, mood, joined_at FROM participants WHERE retro_id = $1 ORDER BY joined_at', [req.params.id]);
     res.json(rows);
+  }));
+
+  // --- Team mood ---
+  const MOODS = ['thrilled', 'good', 'soso', 'tense', 'burned'];
+  app.put('/api/retros/:id/mood', ah(async (req, res) => {
+    const { mood } = req.body;
+    if (!MOODS.includes(mood)) return res.status(400).json({ error: 'Invalid mood' });
+    const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
+    if (!retro) return res.status(404).json({ error: 'Retro not found' });
+    const user = await getUser(req);
+    let participant = null;
+    if (user && user.username === retro.created_by) {
+      // Admin sets mood on their own participant row (or a synthetic one)
+      const existing = await db.get('SELECT id FROM participants WHERE retro_id = $1 AND name = $2', [retro.id, user.username]);
+      if (existing) {
+        await db.run('UPDATE participants SET mood = $1 WHERE id = $2', [mood, existing.id]);
+      } else {
+        await db.run('INSERT INTO participants (retro_id, name, mood) VALUES ($1, $2, $3)', [retro.id, user.username, mood]);
+      }
+    } else {
+      participant = await getParticipant(req, retro.id);
+      if (!participant) return res.status(401).json({ error: 'Join this retro first' });
+      await db.run('UPDATE participants SET mood = $1 WHERE id = $2', [mood, participant.id]);
+    }
+    broadcast(retro.id, 'mood_changed', {});
+    res.json({ ok: true, mood });
   }));
 }
 

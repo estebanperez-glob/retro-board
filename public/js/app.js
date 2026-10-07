@@ -284,6 +284,7 @@ async function renderRetro() {
           <button class="btn small secondary" id="copy-invite">Copy</button>
         </div>` : ''}
       <div class="participants-bar" id="participants-bar"></div>
+      <div class="mood-bar" id="mood-bar"></div>
       <div style="margin-top:8px">
         ${retroIsAdmin ? `
           <button class="btn small secondary" id="close-retro" ${retro.status === 'closed' ? 'disabled' : ''}>Close Retro</button>
@@ -358,6 +359,46 @@ function renderJoinScreen(message) {
 function renderParticipants(participants) {
   const bar = document.getElementById('participants-bar');
   bar.innerHTML = participants.map(p => `<span class="participant-chip">👤 ${Auth.esc(p.name)}</span>`).join('');
+  renderMood(participants);
+}
+
+// --- Team mood ---
+const MOOD_OPTIONS = [
+  { key: 'thrilled', emoji: '🤩', label: 'Thrilled' },
+  { key: 'good',     emoji: '😌', label: 'Good' },
+  { key: 'soso',     emoji: '🙃', label: 'So-so' },
+  { key: 'tense',    emoji: '😬', label: 'Tense' },
+  { key: 'burned',   emoji: '🫠', label: 'Burned out' },
+];
+
+function renderMood(participants) {
+  const bar = document.getElementById('mood-bar');
+  if (!bar) return;
+  const withMood = participants.filter(p => p.mood);
+  const counts = {};
+  for (const p of withMood) counts[p.mood] = (counts[p.mood] || 0) + 1;
+  const summary = MOOD_OPTIONS
+    .filter(m => counts[m.key])
+    .map(m => `<span class="mood-count" title="${m.label}: ${counts[m.key]}">${m.emoji}×${counts[m.key]}</span>`)
+    .join(' ');
+  const myMood = participants.find(p => p.name === currentUser)?.mood || null;
+  bar.innerHTML = `
+    <span class="muted">Team mood:</span>
+    ${MOOD_OPTIONS.map(m => `
+      <button class="mood-btn ${myMood === m.key ? 'selected' : ''}" data-mood="${m.key}" title="${m.label}">${m.emoji}</button>
+    `).join('')}
+    <span class="mood-summary" id="mood-summary">${summary || '<span class="muted">No moods yet</span>'}</span>`;
+  bar.querySelectorAll('.mood-btn').forEach(btn => {
+    btn.onclick = async () => {
+      try {
+        await Auth.api(`/retros/${currentRetroId}/mood`, {
+          method: 'PUT', body: JSON.stringify({ mood: btn.dataset.mood }),
+        });
+      } catch (err) {
+        toast(err.message, 'points');
+      }
+    };
+  });
 }
 
 function renderBoard(cards, template) {
@@ -737,6 +778,7 @@ function handleLiveEvent(event, payload) {
       refreshCommitments();
       break;
     case 'participants_changed':
+    case 'mood_changed':
       refreshParticipants();
       break;
     case 'cards_refresh':

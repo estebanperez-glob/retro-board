@@ -346,6 +346,21 @@ header nav a:hover { color: var(--accent); }
   font-size: 0.8rem; color: var(--muted);
 }
 
+/* Team mood bar */
+.mood-bar {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: 8px; font-size: 0.9rem;
+}
+.mood-btn {
+  background: var(--surface-2); border: 1px solid transparent; border-radius: 999px;
+  font-size: 1.15rem; padding: 4px 10px; cursor: pointer; line-height: 1;
+  transition: transform 0.1s, border-color 0.1s;
+}
+.mood-btn:hover { transform: scale(1.15); }
+.mood-btn.selected { border-color: var(--accent); background: var(--surface); }
+.mood-summary { margin-left: 8px; }
+.mood-count { margin-right: 6px; }
+
 /* ---------- Graffiti home ---------- */
 .home-bg {
   background:

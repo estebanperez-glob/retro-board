@@ -103,6 +103,7 @@ async function initSchema() {
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN NOT NULL DEFAULT FALSE',
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS join_code TEXT',
     'ALTER TABLE participants ADD COLUMN IF NOT EXISTS access_token TEXT',
+    'ALTER TABLE participants ADD COLUMN IF NOT EXISTS mood TEXT',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS security_question TEXT',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS security_answer_hash TEXT',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT',
