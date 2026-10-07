@@ -679,3 +679,34 @@ header nav a:hover { color: var(--accent); }
 .health-bar { height: 8px; border-radius: 4px; background: rgba(128, 128, 128, 0.2); overflow: hidden; margin: 4px 0 10px; }
 .health-bar-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.4s; }
 .health-meta { font-size: 0.85rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 10px; }
+.health-meta span { display: inline-flex; align-items: center; gap: 4px; line-height: 1.4; }
+
+/* ---------- Dashboard readability polish ---------- */
+/* Clearer typography: slightly larger muted text, more line-height */
+.muted { line-height: 1.55; }
+.health-card h3, .retro-card h3 { letter-spacing: 0.01em; }
+.health-meta { font-size: 0.9rem; }
+.badge { font-size: 0.85rem; padding: 3px 12px; }
+
+/* Keep emoji icons visually consistent (no baseline wobble) */
+.health-meta span,
+.badge,
+.participant-chip,
+.mood-count {
+  font-family: "Segoe UI Emoji", "Noto Color Emoji", var(--font-body, sans-serif);
+}
+.health-meta span, .badge { font-size: 0.9rem; }
+
+/* Evolution chart container: fixed height so it doesn't jump on re-render */
+.evolution-chart { min-height: 320px; }
+.evolution-chart canvas { max-height: 380px; }
+
+/* ---------- Template preview chips (home) ---------- */
+.template-preview {
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+  margin-top: 8px;
+}
+.template-chip {
+  background: var(--surface-2); border: 1px solid var(--accent); border-radius: 999px;
+  padding: 3px 12px; font-size: 0.8rem; color: var(--text);
+}

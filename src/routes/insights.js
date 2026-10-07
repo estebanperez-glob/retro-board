@@ -30,7 +30,11 @@ function register(app) {
     const rows = await db.all(`
       SELECT r.id, r.title, r.sprint, r.created_at,
         COUNT(CASE WHEN cm.status = 'done' THEN 1 END) AS completed,
-        COUNT(*) AS total
+        COUNT(*) AS total,
+        (SELECT ROUND(AVG(CASE p.mood
+            WHEN 'thrilled' THEN 5 WHEN 'good' THEN 4 WHEN 'soso' THEN 3
+            WHEN 'tense' THEN 2 WHEN 'burned' THEN 1 END)::numeric, 2)
+          FROM participants p WHERE p.retro_id = r.id AND p.mood IS NOT NULL) AS mood_avg
       FROM retros r LEFT JOIN commitments cm ON cm.retro_id = r.id
       WHERE r.created_by = $1
       GROUP BY r.id ORDER BY r.created_at ASC`, [user.username]);
@@ -115,6 +119,11 @@ function register(app) {
         db.get('SELECT COUNT(*) AS n FROM votes WHERE retro_id = $1', [retro.id]),
         db.all('SELECT status FROM commitments WHERE retro_id = $1', [retro.id]),
       ]);
+      const moodRow = await db.get(`
+        SELECT ROUND(AVG(CASE mood
+            WHEN 'thrilled' THEN 5 WHEN 'good' THEN 4 WHEN 'soso' THEN 3
+            WHEN 'tense' THEN 2 WHEN 'burned' THEN 1 END)::numeric, 2) AS mood_avg
+        FROM participants WHERE retro_id = $1 AND mood IS NOT NULL`, [retro.id]);
       const participantCount = Number(participants.n) || 0;
       const cardCount = Number(cards.n);
       const voteCount = Number(votes.n);
@@ -132,6 +141,7 @@ function register(app) {
         participants: participantCount, cards: cardCount, votes: voteCount,
         commitments_total: totalCm, commitments_done: doneCm,
         participation, engagement, follow_through: followThrough, score,
+        mood_avg: moodRow?.mood_avg ? Number(moodRow.mood_avg) : null,
       });
     }
     res.json(scores);

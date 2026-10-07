@@ -10,6 +10,10 @@ const TEMPLATE_COLUMNS = {
   ssc: ['start_doing', 'stop_doing', 'continue_doing'],
   msg: ['mad', 'sad', 'glad'],
   '4ls': ['liked', 'learned', 'lacked', 'longed_for'],
+  sailboat: ['wind', 'anchors', 'risks', 'island'],
+  starfish: ['more', 'less', 'start', 'stop', 'keep'],
+  daki: ['drop', 'add', 'keep', 'improve'],
+  wellbeing: ['energized', 'drained', 'support_needed', 'suggestions'],
 };
 
 // Human-readable labels for the built-in template columns (acta/summary exports)
@@ -18,6 +22,10 @@ const TEMPLATE_LABELS = {
   ssc: { start_doing: 'Start Doing', stop_doing: 'Stop Doing', continue_doing: 'Continue Doing' },
   msg: { mad: 'Mad', sad: 'Sad', glad: 'Glad' },
   '4ls': { liked: 'Liked', learned: 'Learned', lacked: 'Lacked', longed_for: 'Longed For' },
+  sailboat: { wind: 'Wind (Propellers)', anchors: 'Anchors (Dragging Us)', risks: 'Risks Ahead', island: 'Island (Goals)' },
+  starfish: { more: 'Keep Doing More', less: 'Do Less', start: 'Start Doing', stop: 'Stop Doing', keep: 'Keep Doing' },
+  daki: { drop: 'Drop', add: 'Add', keep: 'Keep', improve: 'Improve' },
+  wellbeing: { energized: 'Energized By', drained: 'Drained By', support_needed: 'Support Needed', suggestions: 'Ideas to Improve' },
 };
 
 // Parse the custom_columns JSON of a retro (array of {key,label}).

@@ -5,6 +5,7 @@ const {
   getUser, getParticipant, requireRetroAccess, requireRetroAdmin,
 } = require('../helpers');
 const { broadcast } = require('../ws');
+const { resolveColumns } = require('./cards');
 
 function register(app) {
   app.get('/api/retros', ah(async (req, res) => {
@@ -35,7 +36,7 @@ function register(app) {
         return res.status(402).json({ error: `Free plan limit reached (${FREE_MAX_RETROS} retros). Upgrade to Pro for unlimited retros.` });
       }
     }
-    const validTemplates = ['classic', 'ssc', 'msg', '4ls'];
+    const validTemplates = ['classic', 'ssc', 'msg', '4ls', 'sailboat', 'starfish', 'daki', 'wellbeing'];
     const tpl = validTemplates.includes(template) ? template : 'classic';
     // Custom columns: JSON array of {key,label} (2-8 columns). Takes precedence over the template.
     let customColumnsJson = null;
@@ -92,6 +93,71 @@ function register(app) {
     const retro = await db.get('SELECT id, title, sprint, status, template, is_anonymous, created_by FROM retros WHERE id = $1', [req.params.id]);
     if (!retro) return res.status(404).json({ error: 'Retro not found' });
     res.json(retro);
+  }));
+
+  // --- Saved custom templates ("Save as template") ---
+  app.get('/api/templates', ah(async (req, res) => {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Log in to see your saved templates' });
+    const rows = await db.all(
+      'SELECT id, name, columns_json, created_at FROM custom_templates WHERE user_id = $1 ORDER BY created_at DESC', [user.id]);
+    res.json(rows);
+  }));
+
+  app.post('/api/retros/:id/save-template', ah(async (req, res) => {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Log in required' });
+    const { name } = req.body;
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'Template name is required' });
+    if (!(await requireRetroAdmin(req, res))) return;
+    const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
+    const resolved = resolveColumns(retro);
+    const labels = resolved.labels || Object.fromEntries(resolved.columns.map(k => [k, k]));
+    const columnsJson = JSON.stringify(resolved.columns.map(k => ({ key: k, label: labels[k] || k })));
+    const trimmedName = String(name).trim().slice(0, 60);
+    const existing = await db.get('SELECT id FROM custom_templates WHERE user_id = $1 AND name = $2', [user.id, trimmedName]);
+    if (existing) {
+      await db.run('UPDATE custom_templates SET columns_json = $1 WHERE id = $2', [columnsJson, existing.id]);
+      return res.json({ ok: true, id: existing.id, updated: true });
+    }
+    const info = await db.run(
+      'INSERT INTO custom_templates (user_id, name, columns_json) VALUES ($1, $2, $3) RETURNING id',
+      [user.id, trimmedName, columnsJson]);
+    res.status(201).json({ ok: true, id: Number(info.lastInsertRowid) });
+  }));
+
+  app.delete('/api/templates/:id', ah(async (req, res) => {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Log in required' });
+    const tpl = await db.get('SELECT id FROM custom_templates WHERE id = $1 AND user_id = $2', [req.params.id, user.id]);
+    if (!tpl) return res.status(404).json({ error: 'Template not found' });
+    await db.run('DELETE FROM custom_templates WHERE id = $1', [tpl.id]);
+    res.json({ ok: true });
+  }));
+
+  // --- Duplicate a retro (admin): same config, fresh board ---
+  app.post('/api/retros/:id/duplicate', ah(async (req, res) => {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Log in required' });
+    if (!(await requireRetroAdmin(req, res))) return;
+    const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
+    const plan = (await db.get('SELECT plan FROM users WHERE id = $1', [user.id]))?.plan || 'free';
+    if (plan === 'free') {
+      const count = Number((await db.get('SELECT COUNT(*) AS n FROM retros WHERE created_by = $1', [user.username])).n);
+      if (count >= FREE_MAX_RETROS) {
+        return res.status(402).json({ error: `Free plan limit reached (${FREE_MAX_RETROS} retros). Upgrade to Pro for unlimited retros.` });
+      }
+    }
+    const joinCode = crypto.randomBytes(5).toString('hex');
+    const info = await db.run(
+      'INSERT INTO retros (title, sprint, created_by, template, is_anonymous, join_code, custom_columns, webhook_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
+      [`${retro.title} (copy)`, retro.sprint, retro.created_by, retro.template, retro.is_anonymous, joinCode, retro.custom_columns, retro.webhook_url]);
+    const newId = Number(info.lastInsertRowid);
+    const adminToken = crypto.randomBytes(24).toString('hex');
+    await db.run(
+      'INSERT INTO participants (retro_id, name, access_token) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+      [newId, user.username, adminToken]);
+    res.status(201).json({ id: newId, title: `${retro.title} (copy)`, join_code: joinCode, participant_token: adminToken });
   }));
 
   app.get('/api/retros/:id', ah(async (req, res) => {

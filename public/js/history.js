@@ -1,4 +1,8 @@
 // History page — requires login (admins see their own retros)
+
+// Emoji per mood level (1-5), used on the evolution chart's right axis
+const MOOD_AXIS_EMOJI = { 1: '🫠', 2: '😬', 3: '🙃', 4: '😌', 5: '🤩' };
+
 async function loadHistory() {
   const list = document.getElementById('retro-list');
   if (!Auth.token) {
@@ -72,6 +76,7 @@ async function loadHealthScore() {
           <span>🗂 ${s.cards} cards</span>
           <span>👍 ${s.votes}</span>
           <span>✅ ${s.commitments_done}/${s.commitments_total} commitments</span>
+          ${s.mood_avg != null ? `<span title="Average team mood">${MOOD_AXIS_EMOJI[Math.round(s.mood_avg)] || '—'} ${s.mood_avg}</span>` : ''}
         </div>
         <a class="btn small secondary" href="/retro.html?id=${s.retro_id}" style="margin-top:8px">Open</a>
       </div>`;
@@ -109,11 +114,41 @@ async function loadEvolution() {
       datasets: [
         { label: 'Completed commitments', data: data.map(r => Number(r.completed)), backgroundColor: '#22c55e' },
         { label: 'Total commitments', data: data.map(r => Number(r.total)), backgroundColor: '#94a3b8' },
+        {
+          type: 'line',
+          label: 'Team mood (1-5)',
+          data: data.map(r => r.mood_avg != null ? Number(r.mood_avg) : null),
+          yAxisID: 'mood',
+          borderColor: '#f59e0b',
+          backgroundColor: '#f59e0b',
+          pointRadius: 5,
+          pointStyle: 'rectRot',
+          tension: 0.3,
+          spanGaps: true,
+        },
       ],
     },
     options: {
       responsive: true,
-      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            afterBody: items => {
+              const r = data[items[0].dataIndex];
+              const pct = r.total ? Math.round(Number(r.completed) / Number(r.total) * 100) : 0;
+              return `Completion: ${pct}%`;
+            },
+          },
+        },
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0 } },
+        mood: {
+          position: 'right', min: 1, max: 5, grid: { drawOnChartArea: false },
+          ticks: { stepSize: 1, callback: v => MOOD_AXIS_EMOJI[v] || v },
+        },
+      },
     },
   });
 }

@@ -28,6 +28,7 @@ function toast(message, cls = '') {
 }
 
 // ---------- Retro templates ----------
+let savedTemplates = []; // user's saved custom templates (loaded on home)
 const TEMPLATES = {
   classic: {
     name: 'Classic (Went Well / Didn\'t Go Well / Actions)',
@@ -56,6 +57,43 @@ const TEMPLATES = {
       learned: '🧠 Learned',
       lacked: '🕳 Lacked',
       longed_for: '✨ Longed For',
+    },
+  },
+  sailboat: {
+    name: 'Sailboat (Wind / Anchors / Risks / Island)',
+    columns: {
+      wind: '🌬 Wind (Propellers)',
+      anchors: '⚓ Anchors (Dragging Us)',
+      risks: '⚠️ Risks Ahead',
+      island: '🏝 Island (Goals)',
+    },
+  },
+  starfish: {
+    name: 'Starfish (More / Less / Start / Stop / Keep)',
+    columns: {
+      more: '➕ Keep Doing More',
+      less: '📉 Do Less',
+      start: '🚀 Start Doing',
+      stop: '🛑 Stop Doing',
+      keep: '✅ Keep Doing',
+    },
+  },
+  daki: {
+    name: 'DAKI (Drop / Add / Keep / Improve)',
+    columns: {
+      drop: '🗑 Drop',
+      add: '➕ Add',
+      keep: '✅ Keep',
+      improve: '🔧 Improve',
+    },
+  },
+  wellbeing: {
+    name: 'Wellbeing Check-in',
+    columns: {
+      energized: '⚡ Energized By',
+      drained: '🪫 Drained By',
+      support_needed: '🤝 Support Needed',
+      suggestions: '💭 Ideas to Improve',
     },
   },
 };
@@ -125,7 +163,53 @@ async function renderHome() {
   };
   templateSelect.addEventListener('change', () => {
     customEditor.classList.toggle('hidden', templateSelect.value !== 'custom');
+    renderTemplatePreview();
   });
+
+  // --- Template preview: chips showing the columns of the selected template ---
+  function renderTemplatePreview() {
+    let previewEl = document.getElementById('template-preview');
+    if (!previewEl) {
+      previewEl = document.createElement('div');
+      previewEl.id = 'template-preview';
+      previewEl.className = 'template-preview';
+      templateSelect.closest('.join-form').after(previewEl);
+    }
+    const val = templateSelect.value;
+    let columns = null;
+    if (TEMPLATES[val]) {
+      previewEl.innerHTML = Object.values(TEMPLATES[val].columns)
+        .map(l => `<span class="template-chip">${l}</span>`).join('');
+    } else if (val.startsWith('saved:')) {
+      const tpl = savedTemplates.find(t => String(t.id) === val.slice(6));
+      if (tpl) {
+        try {
+          previewEl.innerHTML = JSON.parse(tpl.columns_json)
+            .map(c => `<span class="template-chip">${Auth.esc(c.label)}</span>`).join('');
+        } catch { previewEl.innerHTML = ''; }
+      } else previewEl.innerHTML = '';
+    } else {
+      previewEl.innerHTML = '<span class="muted" style="font-size:0.85rem">Define your own columns below 👇</span>';
+    }
+  }
+  renderTemplatePreview();
+
+  // --- Saved templates: load into the select (logged-in users) ---
+  if (Auth.token) {
+    Auth.api('/templates').then(rows => {
+      savedTemplates = rows;
+      if (!rows.length) return;
+      const savedGroup = document.createElement('optgroup');
+      savedGroup.label = 'My saved templates';
+      for (const t of rows) {
+        const opt = document.createElement('option');
+        opt.value = `saved:${t.id}`;
+        opt.textContent = `💾 ${t.name}`;
+        savedGroup.appendChild(opt);
+      }
+      templateSelect.insertBefore(savedGroup, templateSelect.querySelector('option[value="custom"]'));
+    }).catch(() => {});
+  }
 
   document.getElementById('create-retro').onclick = async () => {
     if (!Auth.token) return Auth.openAuthModal('register');
@@ -134,7 +218,13 @@ async function renderHome() {
     const template = document.getElementById('retro-template').value;
     const is_anonymous = document.getElementById('retro-anon').checked;
     let custom_columns = null;
-    if (template === 'custom') {
+    let templateParam = template;
+    if (template.startsWith('saved:')) {
+      const tpl = savedTemplates.find(t => String(t.id) === template.slice(6));
+      if (!tpl) return toast('Saved template not found', 'points');
+      custom_columns = tpl.columns_json;
+      templateParam = 'classic'; // ignored when custom_columns is set
+    } else if (template === 'custom') {
       const labels = [...customEditor.querySelectorAll('.custom-col-row input')]
         .map(inp => inp.value.trim()).filter(Boolean);
       if (labels.length < 2) return toast('Custom template needs at least 2 columns', 'points');
@@ -143,7 +233,7 @@ async function renderHome() {
         label,
       })));
     }
-    await createRetroWithCarryOver(title, sprint, template, is_anonymous, custom_columns);
+    await createRetroWithCarryOver(title, sprint, templateParam, is_anonymous, custom_columns);
   };
 
   document.getElementById('join-retro').onclick = () => {
@@ -289,6 +379,8 @@ async function renderRetro() {
         ${retroIsAdmin ? `
           <button class="btn small secondary" id="close-retro" ${retro.status === 'closed' ? 'disabled' : ''}>Close Retro</button>
           <button class="btn small secondary" id="reopen-retro" ${retro.status === 'open' ? 'disabled' : ''}>Reopen Retro</button>
+          <button class="btn small secondary" id="duplicate-retro">⧉ Duplicate</button>
+          <button class="btn small secondary" id="save-template">💾 Save as Template</button>
           <button class="btn small danger" id="delete-retro">Delete Retro</button>
         ` : ''}
         <span class="muted" id="votes-counter" style="margin-left:8px"></span>
@@ -845,6 +937,30 @@ function wireRetroEvents() {
     if (confirm('⚠️ Delete this retro permanently? All cards, commitments and points will be lost.')) {
       await Auth.api(`/retros/${currentRetroId}`, { method: 'DELETE' });
       location.href = '/';
+    }
+  };
+  const duplicateBtn = document.getElementById('duplicate-retro');
+  if (duplicateBtn) duplicateBtn.onclick = async () => {
+    if (!confirm('Duplicate this retro with the same configuration (fresh board)?')) return;
+    try {
+      const result = await Auth.api(`/retros/${currentRetroId}/duplicate`, { method: 'POST' });
+      toast('Retro duplicated ✅ Opening the copy…');
+      setTimeout(() => { location.href = `/retro.html?id=${result.id}`; }, 800);
+    } catch (err) {
+      toast(err.message, 'points');
+    }
+  };
+  const saveTemplateBtn = document.getElementById('save-template');
+  if (saveTemplateBtn) saveTemplateBtn.onclick = async () => {
+    const name = prompt('Template name (e.g. "My Sprint Retro"):');
+    if (!name || !name.trim()) return;
+    try {
+      await Auth.api(`/retros/${currentRetroId}/save-template`, {
+        method: 'POST', body: JSON.stringify({ name: name.trim() }),
+      });
+      toast('Template saved! You will find it when creating a retro 💾');
+    } catch (err) {
+      toast(err.message, 'points');
     }
   };
   const copyInvite = document.getElementById('copy-invite');
