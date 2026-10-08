@@ -4,9 +4,9 @@ const Auth = {
   username: localStorage.getItem('retroAuthUser') || null,
   initTheme() {
     // Move the pre-render class from <html> to <body> and keep it in sync
-    if (document.documentElement.classList.contains('light-init')) {
-      document.documentElement.classList.remove('light-init');
-      document.body.classList.add('light-theme');
+    if (document.documentElement.classList.contains('dark-init')) {
+      document.documentElement.classList.remove('dark-init');
+      document.body.classList.add('dark-theme');
     }
   },
   set(token, username) {
@@ -49,12 +49,12 @@ const Auth = {
       <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">🌙</button>`;
     const themeBtn = document.getElementById('theme-toggle');
     const syncThemeBtn = () => {
-      themeBtn.textContent = document.body.classList.contains('light-theme') ? '🌙' : '☀️';
+      themeBtn.textContent = document.body.classList.contains('dark-theme') ? '☀️' : '🌙';
     };
     syncThemeBtn();
     themeBtn.onclick = () => {
-      document.body.classList.toggle('light-theme');
-      localStorage.setItem('retroTheme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+      document.body.classList.toggle('dark-theme');
+      localStorage.setItem('retroTheme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
       syncThemeBtn();
     };
     const loginLink = document.getElementById('nav-login');
