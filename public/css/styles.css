@@ -132,6 +132,36 @@ input:focus, select:focus, textarea:focus { outline: 3px solid var(--blue); outl
 .column.didnt_go_well .card { border-left: 6px solid var(--red); }
 .column.action .card { border-left: 4px solid var(--yellow); }
 .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
+
+/* Column count badge */
+.col-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 8px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 2px solid var(--ink);
+  font-size: 0.8rem;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
+/* Illustrated empty states */
+.empty-state {
+  text-align: center;
+  padding: 56px 24px;
+  background: var(--surface);
+  border: 2px dashed var(--ink);
+  border-radius: var(--radius);
+  max-width: 480px;
+  margin: 32px auto;
+}
+.empty-state .empty-emoji { font-size: 3rem; margin-bottom: 12px; }
+.empty-state h3 { margin-bottom: 6px; }
+.empty-state .btn { display: inline-block; margin-top: 16px; text-decoration: none; }
 .card .content { margin-bottom: 10px; word-break: break-word; }
 .card .meta { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 0.85rem; }
 .card .vote-btn { cursor: pointer; background: none; border: none; color: var(--muted); font-size: 1rem; }

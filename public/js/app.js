@@ -214,6 +214,7 @@ async function renderHome() {
   document.getElementById('create-retro').onclick = async () => {
     if (!Auth.token) return Auth.openAuthModal('register');
     const title = document.getElementById('retro-title').value.trim();
+    if (!title) return toast('Give your retro a title first ✏️', 'points');
     const sprint = document.getElementById('retro-sprint').value.trim();
     const template = document.getElementById('retro-template').value;
     const is_anonymous = document.getElementById('retro-anon').checked;
@@ -496,9 +497,11 @@ function renderMood(participants) {
 function renderBoard(cards, template) {
   const board = document.getElementById('board');
   board.style.gridTemplateColumns = `repeat(${Object.keys(template.columns).length}, 1fr)`;
-  board.innerHTML = Object.entries(template.columns).map(([col, label]) => `
+  board.innerHTML = Object.entries(template.columns).map(([col, label]) => {
+    const colCount = cards.filter(c => c.column_type === col).length;
+    return `
     <div class="column ${col}" data-col="${col}">
-      <h3>${label}</h3>
+      <h3>${label} <span class="col-count">${cards.filter(c => c.column_type === col).length}</span></h3>
       <div class="cards" data-col="${col}">
         ${cards.filter(c => c.column_type === col).map(renderCard).join('') ||
           '<p class="empty-column muted">No cards yet — be the first to add one! 🎨</p>'}
@@ -507,7 +510,8 @@ function renderBoard(cards, template) {
         <textarea placeholder="Add a card..." data-col="${col}"></textarea>
         <button class="btn small add-card" data-col="${col}">Add Card</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   board.querySelectorAll('.add-card').forEach(btn => {
     btn.onclick = async () => {
@@ -521,6 +525,15 @@ function renderBoard(cards, template) {
       });
       textarea.value = '';
     };
+  });
+
+  board.querySelectorAll('.add-card-form textarea').forEach(ta => {
+    ta.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        board.querySelector(`.add-card[data-col="${e.target.dataset.col}"]`)?.click();
+      }
+    });
   });
 
   board.querySelectorAll('.vote-btn').forEach(btn => {

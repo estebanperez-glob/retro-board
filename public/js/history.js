@@ -22,7 +22,13 @@ async function loadHistory() {
     return;
   }
   if (!retros.length) {
-    list.innerHTML = '<p class="muted">No retros yet. Create one from the Home page!</p>';
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-emoji">🗂️</div>
+        <h3>No retros yet</h3>
+        <p class="muted">Create your first retrospective from the Home page and it will show up here.</p>
+        <a class="btn" href="/">+ Create your first retro</a>
+      </div>`;
     return;
   }
   list.innerHTML = retros.map(r => `
