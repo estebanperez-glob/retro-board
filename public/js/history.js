@@ -36,7 +36,7 @@ async function loadHistory() {
       <h3>${Auth.esc(r.title)}</h3>
       ${r.sprint ? `<p class="muted">Sprint: ${Auth.esc(r.sprint)}</p>` : ''}
       <p class="muted">Created: ${r.created_at?.slice(0, 10) || ''}</p>
-      <p>
+      <p class="retro-badges">
         <span class="badge">${r.card_count} cards</span>
         <span class="badge">${r.commitment_count} commitments</span>
         <span class="badge status-${r.status}">${r.status === 'closed' ? '✅ Closed' : '🟢 Open'}</span>
