@@ -606,9 +606,20 @@ function moveCardElement(cardId, columnType) {
   const zone = document.querySelector(`.cards[data-col="${columnType}"]`);
   if (!zone) return;
   if (cardEl.closest('.cards') === zone) return; // already there
+  const oldZone = cardEl.closest('.cards');
   zone.appendChild(cardEl);
   // Remove the "empty column" placeholder if it exists in the target zone
   zone.querySelector('.empty-column')?.remove();
+  // Keep column count badges in sync (source loses one, target gains one)
+  if (oldZone) {
+    const oldCol = oldZone.dataset.col;
+    const oldCount = oldZone.querySelectorAll('.card').length;
+    const oldCountEl = document.querySelector(`.column[data-col="${oldCol}"] .col-count`);
+    if (oldCountEl) oldCountEl.textContent = oldCount;
+  }
+  const newCount = zone.querySelectorAll('.card').length;
+  const newCountEl = zone.closest('.column')?.querySelector('.col-count');
+  if (newCountEl) newCountEl.textContent = newCount;
 }
 
 // Touch fallback for drag & drop: long-press on a card opens a "Move to…" menu.
