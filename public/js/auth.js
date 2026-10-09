@@ -40,13 +40,16 @@ const Auth = {
       : isGuest
         ? `<span class="nav-user">👻 Guest</span><a href="#" id="nav-exit-guest">Exit guest mode</a><a href="#" id="nav-login">Login / Register</a>`
         : `<a href="#" id="nav-login">Login / Register</a>`;
+    const page = location.pathname;
+    const active = p => (p === '/' ? location.pathname === '/' || location.pathname === '/index.html' : location.pathname === p) ? ' class="active"' : '';
     nav.innerHTML = `
-      <a href="/">Home</a>
-      <a href="/history.html">History</a>
-      <a href="/leaderboard.html">Leaderboard</a>
-      ${this.username ? '<a href="/my-commitments.html">My Commitments</a>' : ''}
+      <a href="/"${active('/')}>Home</a>
+      <a href="/history.html"${active('/history.html')}>History</a>
+      <a href="/leaderboard.html"${active('/leaderboard.html')}>Leaderboard</a>
+      ${this.username ? `<a href="/my-commitments.html"${active('/my-commitments.html')}>My Commitments</a>` : ''}
       ${authArea}
-      <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">🌙</button>`;
+      <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">🌙</button>
+      ${page === '/account.html' ? '<a class="btn small secondary" href="javascript:history.back()">← Back</a>' : ''}`;
     const themeBtn = document.getElementById('theme-toggle');
     const syncThemeBtn = () => {
       themeBtn.textContent = document.body.classList.contains('dark-theme') ? '☀️' : '🌙';

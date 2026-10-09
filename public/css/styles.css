@@ -59,11 +59,15 @@ header h1 { font-size: 1.4rem; }
 nav a {
   color: var(--muted);
   text-decoration: none;
-  margin-left: 24px;
-  font-weight: 600;
-  transition: color 0.2s;
+  margin-left: 10px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  transition: color 0.2s, border-color 0.2s, box-shadow 0.15s, transform 0.15s;
 }
-nav a:hover { color: var(--accent); }
+nav a:hover { color: var(--text); background: var(--surface-2); border-color: var(--ink); box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1px); }
+nav a.active { background: var(--yellow); color: var(--ink); border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
 
 main { padding: 32px; max-width: 1400px; margin: 0 auto; }
 
