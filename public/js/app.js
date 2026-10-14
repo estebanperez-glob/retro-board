@@ -536,21 +536,33 @@ function renderBoard(cards, template) {
     });
   });
 
-  board.querySelectorAll('.vote-btn').forEach(btn => {
-    btn.onclick = async () => {
-      try {
-        await Auth.api(`/cards/${btn.dataset.id}/vote`, { method: 'POST', body: JSON.stringify({ voter: currentUser }) });
-      } catch (err) {
-        toast(err.message, 'points');
+  // Vote / delete / edit via event delegation on the board container
+  // (survives re-renders and cards inserted by WebSocket events)
+  if (!board.dataset.actionsWired) {
+    board.dataset.actionsWired = 'true';
+    board.addEventListener('click', async e => {
+      const voteBtn = e.target.closest('.vote-btn');
+      if (voteBtn) {
+        try {
+          await Auth.api(`/cards/${voteBtn.dataset.id}/vote`, { method: 'POST', body: JSON.stringify({ voter: currentUser }) });
+        } catch (err) {
+          toast(err.message, 'points');
+        }
+        return;
       }
-    };
-  });
-  board.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.onclick = () => Auth.api(`/cards/${btn.dataset.id}`, { method: 'DELETE' });
-  });
-  board.querySelectorAll('.edit-btn').forEach(btn => {
-    btn.onclick = () => openEditCardModal(btn.dataset.id, btn.dataset.content);
-  });
+      const deleteBtn = e.target.closest('.delete-btn');
+      if (deleteBtn) {
+        try {
+          await Auth.api(`/cards/${deleteBtn.dataset.id}`, { method: 'DELETE' });
+        } catch (err) {
+          toast(err.message, 'points');
+        }
+        return;
+      }
+      const editBtn = e.target.closest('.edit-btn');
+      if (editBtn) openEditCardModal(editBtn.dataset.id, editBtn.dataset.content);
+    });
+  }
 
   // Drag & drop via delegation on the board container (survives re-renders)
   if (!board.dataset.wired) {
@@ -719,6 +731,7 @@ function openEditCardModal(cardId, currentContent) {
 const KANBAN_LABELS = { pending: '⏳ Pending', in_progress: '🔄 In Progress', done: '✅ Done' };
 
 function renderKanban(commitments) {
+  window.__latestCommitments = commitments; // keep click handlers working with fresh data
   const kanban = document.getElementById('kanban');
   kanban.innerHTML = Object.keys(KANBAN_LABELS).map(status => `
     <div class="kcolumn ${status}" data-status="${status}">
@@ -771,7 +784,7 @@ function renderKanban(commitments) {
       if (del) { Auth.api(`/commitments/${del.dataset.id}`, { method: 'DELETE' }).catch(err => toast(err.message, 'points')); return; }
       const edit = e.target.closest('.edit-cm');
       if (edit) {
-        const cm = commitments.find(c => c.id === Number(edit.dataset.id));
+        const cm = (window.__latestCommitments || []).find(c => c.id === Number(edit.dataset.id));
         if (cm) openCommitmentModal(cm);
       }
     });
