@@ -16,6 +16,17 @@
   <main id="app">
     <h2>Past Retrospectives</h2>
     <p style="text-align:right"><a class="btn secondary" href="javascript:history.back()">← Back</a></p>
+    <div class="history-filters" id="history-filters">
+      <input id="filter-text" placeholder="🔍 Search title" style="max-width:200px">
+      <select id="filter-status">
+        <option value="">All statuses</option>
+        <option value="open">🟢 Open</option>
+        <option value="closed">✅ Closed</option>
+      </select>
+      <input type="date" id="filter-from" title="From date">
+      <input type="date" id="filter-to" title="To date">
+      <button class="btn small secondary" id="filter-clear">✕ Clear</button>
+    </div>
     <div id="health-score-section"></div>
     <div id="evolution-chart" class="evolution-chart" style="position:relative"></div>
     <div id="retro-list" class="card-grid"></div>

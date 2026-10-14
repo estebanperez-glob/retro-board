@@ -3,6 +3,21 @@
 // Emoji per mood level (1-5), used on the evolution chart's right axis
 const MOOD_AXIS_EMOJI = { 1: '🫠', 2: '😬', 3: '🙃', 4: '😌', 5: '🤩' };
 
+// Full history list (unfiltered), used by the filter bar
+let allRetros = [];
+
+// Wire up the filter bar
+['filter-text', 'filter-status', 'filter-from', 'filter-to'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', applyHistoryFilters);
+});
+document.getElementById('filter-clear')?.addEventListener('click', () => {
+  ['filter-text', 'filter-status', 'filter-from', 'filter-to'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  applyHistoryFilters();
+});
+
 async function loadHistory() {
   const list = document.getElementById('retro-list');
   if (!Auth.token) {
@@ -31,6 +46,36 @@ async function loadHistory() {
       </div>`;
     return;
   }
+  allRetros = retros;
+  renderRetroList(retros);
+
+  loadEvolution();
+  loadHealthScore();
+}
+
+// Apply client-side filters to the history list
+function applyHistoryFilters() {
+  const text = (document.getElementById('filter-text')?.value || '').toLowerCase();
+  const status = document.getElementById('filter-status')?.value || '';
+  const from = document.getElementById('filter-from')?.value || '';
+  const to = document.getElementById('filter-to')?.value || '';
+  const filtered = allRetros.filter(r => {
+    if (text && !r.title.toLowerCase().includes(text)) return false;
+    if (status && r.status !== status) return false;
+    const day = r.created_at?.slice(0, 10) || '';
+    if (from && day < from) return false;
+    if (to && day > to) return false;
+    return true;
+  });
+  renderRetroList(filtered);
+}
+
+function renderRetroList(retros) {
+  const list = document.getElementById('retro-list');
+  if (!retros.length) {
+    list.innerHTML = '<p class="muted" style="grid-column:1/-1">No retros match the current filters.</p>';
+    return;
+  }
   list.innerHTML = retros.map(r => `
     <div class="retro-card ${r.status}">
       <h3>${Auth.esc(r.title)}</h3>
@@ -42,11 +87,23 @@ async function loadHistory() {
         <span class="badge status-${r.status}">${r.status === 'closed' ? '✅ Closed' : '🟢 Open'}</span>
       </p>
       <a class="btn small" href="/retro.html?id=${r.id}">Open</a>
+      <button class="btn small danger retro-delete" data-id="${r.id}" data-title="${Auth.esc(r.title)}" title="Delete retro">🗑</button>
     </div>`).join('');
-
-  loadEvolution();
-  loadHealthScore();
 }
+
+// Delete retro (owner only) — event delegation on the list
+document.getElementById('retro-list')?.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.retro-delete');
+  if (!btn) return;
+  if (!confirm(`⚠️ Delete "${btn.dataset.title}" permanently? All cards, commitments and points will be lost.`)) return;
+  try {
+    await Auth.api(`/retros/${btn.dataset.id}`, { method: 'DELETE' });
+    btn.closest('.retro-card').remove();
+    Auth.toast('Retro deleted');
+  } catch (err) {
+    Auth.toast(`Could not delete: ${err.message}`);
+  }
+});
 
 // Team Health Score: composite 0-100 per retro (participation, engagement, follow-through)
 async function loadHealthScore() {

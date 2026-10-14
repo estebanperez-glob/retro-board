@@ -281,6 +281,22 @@ Auth.renderNav();
       }
     }
   } catch { /* badge is cosmetic; ignore */ }
+
+  // Due-soon badge (orange) on the "My Commitments" nav link
+  try {
+    if (!Auth.token) return;
+    const { count } = await Auth.api('/my-due-soon-count');
+    if (count > 0) {
+      const link = document.querySelector('header nav a[href="/my-commitments.html"]');
+      if (link && !link.querySelector('.nav-badge-due')) {
+        const badge = document.createElement('span');
+        badge.className = 'nav-badge nav-badge-due';
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.title = `${count} commitment${count === 1 ? '' : 's'} due within 3 days`;
+        link.appendChild(badge);
+      }
+    }
+  } catch { /* badge is cosmetic; ignore */ }
 })();
 
 // Page-view tracking: fire-and-forget beacon, no cookies, no PII.

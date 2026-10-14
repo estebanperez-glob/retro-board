@@ -126,6 +126,22 @@ function register(app) {
       [user.username, user.username]);
     res.json({ count: Number(row.count) });
   }));
+
+  // --- Due-soon badge: commitments due within the next 3 days (not overdue yet) ---
+  app.get('/api/my-due-soon-count', ah(async (req, res) => {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Log in to see your upcoming deadlines' });
+    const row = await db.get(`
+      SELECT COUNT(*) AS count
+      FROM commitments cm JOIN retros r ON r.id = cm.retro_id
+      WHERE cm.assignee = $1 AND r.created_by = $2
+        AND cm.status != 'done'
+        AND cm.due_date IS NOT NULL
+        AND cm.due_date >= to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+        AND cm.due_date <= to_char((now() + interval '3 days') AT TIME ZONE 'UTC', 'YYYY-MM-DD')`,
+      [user.username, user.username]);
+    res.json({ count: Number(row.count) });
+  }));
 }
 
 module.exports = { register };

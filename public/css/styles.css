@@ -11,6 +11,7 @@
   --red: #e5484d;
   --yellow: #f5b301;
   --blue: #4d96ff;
+  --orange: #f97316;
   --ink: #2d3441;            /* border ink (thick borders) */
   --border: #f0e9dc;
   --radius: 12px;
@@ -30,6 +31,7 @@ html.dark-init, body.dark-theme {
   --green: #4ade80;
   --red: #f87171;
   --yellow: #fbbf24;
+  --orange: #fb923c;
   --ink: #0f1220;
   --border: #3a4157;
   --shadow-hard: 3px 3px 0 rgba(0, 0, 0, 0.55);
@@ -136,6 +138,29 @@ input:focus, select:focus, textarea:focus { outline: 3px solid var(--blue); outl
 .column.didnt_go_well .card { border-left: 6px solid var(--red); }
 .column.action .card { border-left: 4px solid var(--yellow); }
 .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
+
+/* History filter bar */
+.history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 14px 0 18px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+}
+.history-filters input,
+.history-filters select {
+  padding: 8px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.9rem;
+}
 
 /* Column count badge */
 .col-count {
@@ -300,6 +325,9 @@ tr:first-child td { font-weight: bold; color: var(--yellow); }
   border-radius: 999px; padding: 0 7px;
   font-size: 0.72rem; font-weight: 700; line-height: 1.5;
   vertical-align: middle;
+}
+.nav-badge-due {
+  background: var(--orange, #f59e0b);
 }
 .check-label {
   display: flex; align-items: center; gap: 6px;

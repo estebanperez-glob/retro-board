@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Retro Board — Free Retrospective Templates</title>
-  <meta name="description" content="Free retrospective templates for agile teams: Start/Stop/Continue, Mad/Sad/Glad, 4Ls and the classic Went Well / Didn't Go Well. Run your sprint retro in minutes.">
+  <meta name="description" content="Free retrospective templates for agile teams: Start/Stop/Continue, Mad/Sad/Glad, 4Ls, Sailboat, Starfish, DAKI, Wellbeing and the classic Went Well / Didn't Go Well. Run your sprint retro in minutes.">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
@@ -42,12 +42,36 @@
           <a class="btn" href="/?template=msg">Use this template</a>
         </article>
         <article class="template-card">
-          <h3>👍🧠🕳✨ 4Ls — Liked / Learned / Lacked / Longed For</h3>
-          <p>A reflective format that captures what the team enjoyed, what they discovered, what was missing, and what they wish they had.</p>
-          <p><strong>Best for:</strong> project wrap-ups, learning-heavy sprints</p>
-          <a class="btn" href="/?template=4ls">Use this template</a>
+          <h3>🌬⚓⚠️🏝 Sailboat</h3>
+          <p>Visual metaphor: the wind pushes the team forward, anchors hold it back, risks loom ahead, and the island is the destination. Highly visual and engaging.</p>
+          <p><strong>Best for:</strong> goal alignment, identifying blockers</p>
+          <a class="btn" href="/?template=sailboat">Use this template</a>
+        </article>
+        <article class="template-card">
+          <h3>⭐ Starfish — More / Less / Start / Stop / Keep</h3>
+          <p>A nuanced take on Start/Stop/Continue with five degrees of change — from doing more of something to keeping it as is.</p>
+          <p><strong>Best for:</strong> mature teams, fine-tuning practices</p>
+          <a class="btn" href="/?template=starfish">Use this template</a>
+        </article>
+        <article class="template-card">
+          <h3>🗑➕✅🔧 DAKI — Drop / Add / Keep / Improve</h3>
+          <p>Decisive and action-focused. Decide what to drop, what to add, what to keep, and what to improve — great for closing a quarter.</p>
+          <p><strong>Best for:</strong> quarterly reviews, big process decisions</p>
+          <a class="btn" href="/?template=daki">Use this template</a>
+        </article>
+        <article class="template-card">
+          <h3>🪫⚡🤝💭 Wellbeing Check-in</h3>
+          <p>A people-first check-in: what energizes the team, what drains it, what support is needed, and ideas to improve. Not sprint-specific.</p>
+          <p><strong>Best for:</strong> wellbeing checks, remote teams, retros off-sprint</p>
+          <a class="btn" href="/?template=wellbeing">Use this template</a>
         </article>
       </div>
+    </section>
+
+    <section class="home-hero" id="custom-templates-section" style="margin-top:24px;display:none">
+      <h3>💾 Your Saved Templates</h3>
+      <p class="muted">Custom templates you saved from your retros. Reuse them when creating a new retro from the Home page.</p>
+      <div id="custom-templates" class="template-grid"></div>
     </section>
 
     <section class="home-hero" style="margin-top:24px">
@@ -65,5 +89,40 @@
       <p><a href="/">Retro Board</a> — fun, actionable retrospectives for agile teams.</p>
     </footer>
   </div>
+  <script src="/js/auth.js"></script>
+  <script>
+    // Show the user's saved custom templates (if logged in)
+    (async () => {
+      if (!Auth.token) return;
+      let templates;
+      try {
+        templates = await Auth.api('/templates');
+      } catch { return; }
+      if (!templates.length) return;
+      const grid = document.getElementById('custom-templates');
+      document.getElementById('custom-templates-section').style.display = '';
+      grid.innerHTML = templates.map(t => {
+        const cols = JSON.parse(t.columns_json).map(c => c.label).join(' / ');
+        return `
+          <article class="template-card">
+            <h3>💾 ${Auth.esc(t.name)}</h3>
+            <p><strong>Columns:</strong> ${cols}</p>
+            <button class="btn small danger tpl-delete" data-id="${t.id}">🗑 Delete</button>
+          </article>`;
+      }).join('');
+      grid.querySelectorAll('.tpl-delete').forEach(btn => {
+        btn.onclick = async () => {
+          if (!confirm('Delete this custom template?')) return;
+          try {
+            await Auth.api(`/templates/${btn.dataset.id}`, { method: 'DELETE' });
+            btn.closest('.template-card').remove();
+            Auth.toast('Template deleted');
+          } catch (err) {
+            Auth.toast(`Could not delete: ${err.message}`);
+          }
+        };
+      });
+    })();
+  </script>
 </body>
 </html>
