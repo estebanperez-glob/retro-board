@@ -46,6 +46,12 @@ async function renderAccount() {
       </div>
 
       <div class="account-card">
+        <h3>💾 Data Backup</h3>
+        <p class="muted" style="font-size:0.85rem">Download a full JSON backup of all your retros (participants, cards, votes and commitments). Keep it as a safety copy.</p>
+        <button class="btn secondary" id="acc-backup">⬇️ Download Backup (JSON)</button>
+      </div>
+
+      <div class="account-card">
         <h3>Security Question</h3>
         <p class="muted" style="font-size:0.85rem">
           ${account.security_question
@@ -85,6 +91,20 @@ async function renderAccount() {
         <button class="btn" id="acc-saveemail">Save Email Settings</button>
       </div>
     </div>`;
+
+  document.getElementById('acc-backup').onclick = () => {
+    // Auth.api adds the Authorization header; download via blob to keep auth
+    Auth.api('/backup.json').then(data => {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `retro-board-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      Auth.toast('Backup downloaded 💾');
+    }).catch(err => Auth.toast(err.message));
+  };
 
   document.getElementById('acc-savepass').onclick = async () => {
     const current_password = document.getElementById('acc-curpass').value;

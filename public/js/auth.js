@@ -49,6 +49,7 @@ const Auth = {
       ${this.username ? `<a href="/my-commitments.html"${active('/my-commitments.html')}>My Commitments</a>` : ''}
       ${authArea}
       <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">🌙</button>
+      <button id="lang-toggle" class="theme-toggle" title="Toggle English/Español">${(localStorage.getItem('retroLang') || 'en') === 'es' ? 'EN' : 'ES'}</button>
       ${page === '/account.html' ? '<a class="btn small secondary" href="javascript:history.back()">← Back</a>' : ''}`;
     const themeBtn = document.getElementById('theme-toggle');
     const syncThemeBtn = () => {
@@ -60,6 +61,32 @@ const Auth = {
       localStorage.setItem('retroTheme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
       syncThemeBtn();
     };
+    const langBtn = document.getElementById('lang-toggle');
+    if (langBtn) langBtn.onclick = () => {
+      const next = (localStorage.getItem('retroLang') || 'en') === 'es' ? 'en' : 'es';
+      localStorage.setItem('retroLang', next);
+      langBtn.textContent = next === 'es' ? 'EN' : 'ES';
+      // Re-render nav with new language and translate the rest of the page
+      this.renderNav();
+      if (window.I18N) window.I18N.apply();
+    };
+    // Translate nav links according to the selected language
+    if (window.I18N) {
+      const langMap = [
+        ['a[href="/"]', 'nav.home'],
+        ['a[href="/history.html"]', 'nav.history'],
+        ['a[href="/leaderboard.html"]', 'nav.leaderboard'],
+        ['a[href="/my-commitments.html"]', 'nav.myCommitments'],
+        ['a[href="/account.html"]', 'nav.account'],
+        ['#nav-logout', 'nav.logout'],
+        ['#nav-login', 'nav.login'],
+        ['#nav-exit-guest', 'nav.exitGuest'],
+      ];
+      for (const [sel, key] of langMap) {
+        const el = nav.querySelector(sel);
+        if (el) el.textContent = window.I18N.t(key);
+      }
+    }
     const loginLink = document.getElementById('nav-login');
     if (loginLink) loginLink.onclick = e => { e.preventDefault(); this.openAuthModal(); };
     const logoutLink = document.getElementById('nav-logout');
@@ -247,6 +274,8 @@ const Auth = {
 };
 Auth.initTheme();
 Auth.renderNav();
+// Translate page chrome (elements with data-i18n) after nav render
+if (window.I18N) window.I18N.apply();
 
 // Show the "Usage Stats" link only to the master user (users.is_master),
 // and the overdue-commitments badge on "My Commitments" for every user.

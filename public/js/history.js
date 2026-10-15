@@ -147,7 +147,48 @@ async function loadHealthScore() {
   section.innerHTML = `
     <h3 style="margin-top:8px">💚 Team Health Score</h3>
     <p class="muted" style="font-size:0.85rem">Composite score: participation (40%) + vote engagement (30%) + commitment follow-through (30%). Latest retro: <strong>${latest.score}</strong>/100.</p>
-    <div class="health-grid">${scores.slice(-6).reverse().map(card).join('')}</div>`;
+    <div class="health-grid">${scores.slice(-6).reverse().map(card).join('')}</div>
+    ${scores.length >= 2 ? `
+      <h3 style="margin-top:20px">📈 Team Trends</h3>
+      <p class="muted" style="font-size:0.85rem">Health score and team mood across your retros.</p>
+      <div class="evolution-chart" style="position:relative"><canvas id="trends-canvas"></canvas></div>` : ''}`;
+  if (scores.length >= 2 && window.Chart) {
+    const recent = scores.slice(-12);
+    new Chart(document.getElementById('trends-canvas'), {
+      type: 'line',
+      data: {
+        labels: recent.map(s => s.sprint || s.title.slice(0, 18)),
+        datasets: [
+          {
+            label: 'Health Score',
+            data: recent.map(s => s.score),
+            borderColor: '#2e9e5b',
+            backgroundColor: 'rgba(46,158,91,0.12)',
+            fill: true,
+            tension: 0.3,
+            yAxisID: 'y',
+          },
+          ...(recent.some(s => s.mood_avg != null) ? [{
+            label: 'Team Mood (1-5)',
+            data: recent.map(s => s.mood_avg),
+            borderColor: '#ff6b35',
+            backgroundColor: 'rgba(255,107,53,0.12)',
+            borderDash: [6, 4],
+            tension: 0.3,
+            yAxisID: 'mood',
+          }] : []),
+        ],
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          y: { beginAtZero: true, max: 100, ticks: { precision: 0 } },
+          ...(recent.some(s => s.mood_avg != null) ? { mood: { position: 'right', min: 1, max: 5, grid: { drawOnChartArea: false } } } : {}),
+        },
+      },
+    });
+  }
 }
 
 // Evolution chart: completed commitments per retro (Chart.js, loaded from CDN)

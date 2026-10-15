@@ -54,6 +54,24 @@ function register(app) {
         [updated.assignee, updated.retro_id, updated.id, 'Commitment completed']);
       broadcast(updated.retro_id, 'points_awarded', { participant: updated.assignee, amount: 10 });
       notifyWebhook(retro.id, `✅ Commitment completed in "${retro.title}": ${updated.description} — kudos to ${updated.assignee} (+10 points) 🎉`);
+
+      // Streak bonus: +5 if the assignee also completed a commitment on time last week
+      const onTime = updated.completed_at && (!updated.due_date || updated.completed_at.slice(0, 10) <= updated.due_date);
+      if (onTime) {
+        const streakRow = await db.get(`
+          SELECT COUNT(*) AS n FROM points
+          WHERE participant_name = $1 AND reason = 'On-time streak bonus'
+            AND created_at >= to_char(now() - interval '14 days' AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')
+            AND created_at < to_char(now() - interval '3 days' AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')`,
+          [updated.assignee]);
+        if (Number(streakRow.count) > 0) {
+          await db.run(
+            'INSERT INTO points (participant_name, retro_id, commitment_id, amount, reason) VALUES ($1, $2, NULL, 5, $3)',
+            [updated.assignee, updated.retro_id, 'On-time streak bonus']);
+          broadcast(updated.retro_id, 'points_awarded', { participant: updated.assignee, amount: 5 });
+          notifyWebhook(retro.id, `🔥 ${updated.assignee} is on a streak! Bonus +5 points for completing commitments on time.`);
+        }
+      }
     }
     // Remove points if it goes back from done
     if (status && status !== 'done' && commitment.status === 'done') {

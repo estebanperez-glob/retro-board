@@ -99,6 +99,19 @@ const TEMPLATES = {
 };
 
 // ---------- Home ----------
+// Featured template of the month: rotates monthly so teams try new formats
+function featuredTemplateBanner() {
+  const ids = Object.keys(TEMPLATES);
+  const month = new Date().getMonth();
+  const featuredId = ids[month % ids.length];
+  const featured = TEMPLATES[featuredId];
+  return `
+    <div class="featured-template">
+      <span>⭐ <strong>Featured this month:</strong> ${featured.name} — a fresh format to try with your team</span>
+      <button class="btn small" id="use-featured" data-tpl="${featuredId}">Try it</button>
+    </div>`;
+}
+
 async function renderHome() {
   const graffitiTitle = 'RETRO BOARD'.split('').map((ch, i) =>
     ch === ' ' ? '<span class="space"> </span>' : `<span class="g${i % 5}">${ch}</span>`
@@ -127,6 +140,7 @@ async function renderHome() {
         <button class="btn secondary" id="join-retro">Join Retro</button>
       </div>
       <p class="muted" style="margin-top:12px"><a href="/templates.html">📖 Browse retro templates →</a></p>
+      ${featuredTemplateBanner()}
     </div>`;
   app.innerHTML = hero + `<div id="dashboard-section"></div>`;
 
@@ -135,6 +149,13 @@ async function renderHome() {
   if (tplParam && TEMPLATES[tplParam]) {
     document.getElementById('retro-template').value = tplParam;
   }
+
+  // Featured template "Try it" button
+  document.getElementById('use-featured')?.addEventListener('click', e => {
+    document.getElementById('retro-template').value = e.currentTarget.dataset.tpl;
+    document.getElementById('retro-title').focus();
+    document.querySelector('.join-form')?.scrollIntoView({ behavior: 'smooth' });
+  });
 
   // Custom columns editor: shown when the "Custom columns…" option is selected
   const templateSelect = document.getElementById('retro-template');
@@ -253,10 +274,25 @@ async function createRetroWithCarryOver(title, sprint, template, is_anonymous, c
   if (previous) {
     const pending = await Auth.api(`/retros/${previous.id}/pending-commitments`);
     if (pending.length > 0) {
-      const list = pending.map(cm => `• ${cm.description} — ${cm.assignee}`).join('\n');
-      const ok = confirm(
-        `The retro "${previous.title}" has ${pending.length} pending commitment(s):\n\n${list}\n\n` +
-        `Import them into the new retro?`);
+      const list = pending.map(cm => `• ${Auth.esc(cm.description)} — ${Auth.esc(cm.assignee)}`).join('<br>');
+      const ok = await new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `
+          <div class="modal">
+            <h3>📋 Carry over pending commitments</h3>
+            <p class="muted">The retro "<strong>${Auth.esc(previous.title)}</strong>" has ${pending.length} pending commitment(s):</p>
+            <div class="carry-list">${list}</div>
+            <p class="muted">Import them into the new retro?</p>
+            <div class="modal-actions">
+              <button class="btn secondary" id="carry-no">No, start fresh</button>
+              <button class="btn" id="carry-yes">Yes, import them</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#carry-no').onclick = () => { overlay.remove(); resolve(false); };
+        overlay.querySelector('#carry-yes').onclick = () => { overlay.remove(); resolve(true); };
+      });
       if (ok) carry_over_from = previous.id;
     }
   }
@@ -611,6 +647,28 @@ function renderBoard(cards, template) {
   }
 }
 
+// Client-side sentiment heuristic (mirrors src/text.js sentimentOf)
+const SENTIMENT_POSITIVE = new Set(('good great well awesome love loved excellent happy glad nice amazing better best ' +
+  'win winning success successful improve improved improvement fast smooth clear helpful productive fun easy ' +
+  'solid strong proud enjoy enjoyed efficient reliable fantastic perfect thanks thank appreciate appreciated ' +
+  'like liked useful valuable quick robust').split(' '));
+const SENTIMENT_NEGATIVE = new Set(('bad worse worst hate hated sad angry upset mad frustrated frustrating slow ' +
+  'blocked blocker bug bugs broken fail failed failure issue issues problem problems unclear confusing confused ' +
+  'difficult hard delay delayed late overdue missing lost stuck tedious painful annoying poor weak unstable ' +
+  'crash crashed error errors wrong struggle struggled lack lacked lacking').split(' '));
+
+function sentimentOf(text) {
+  const words = String(text).toLowerCase().split(/[^a-z]+/);
+  let score = 0;
+  for (const w of words) {
+    if (SENTIMENT_POSITIVE.has(w)) score += 1;
+    if (SENTIMENT_NEGATIVE.has(w)) score -= 1;
+  }
+  return score > 0 ? 'positive' : score < 0 ? 'negative' : 'neutral';
+}
+
+const SENTIMENT_EMOJI = { positive: '😊', neutral: '😐', negative: '😟' };
+
 // Move a card element to the right column (used by WS card_updated)
 function moveCardElement(cardId, columnType) {
   const cardEl = document.querySelector(`.card[data-id="${cardId}"]`);
@@ -689,13 +747,13 @@ function renderCard(card) {
   return `
     <div class="card" data-id="${card.id}" draggable="true">
       ${groupBadge ? `<div class="group-row">${groupBadge}</div>` : ''}
-      <div class="content">${Auth.esc(card.content)}</div>
+      <div class="content">${Auth.esc(card.content)} <span class="sentiment-badge" title="Feedback tone: ${sentimentOf(card.content)}">${SENTIMENT_EMOJI[sentimentOf(card.content)]}</span></div>
       <div class="meta">
         <span>by ${Auth.esc(card.author)}</span>
         <span>
-          <button class="vote-btn" data-id="${card.id}" title="Vote">👍 ${card.votes}</button>
-          <button class="edit-btn" data-id="${card.id}" data-content="${Auth.esc(card.content)}" title="Edit">✏️</button>
-          <button class="delete-btn" data-id="${card.id}" title="Delete">🗑</button>
+          <button class="vote-btn" data-id="${card.id}" title="Vote" aria-label="Vote for this card">👍 ${card.votes}</button>
+          <button class="edit-btn" data-id="${card.id}" data-content="${Auth.esc(card.content)}" title="Edit" aria-label="Edit this card">✏️</button>
+          <button class="delete-btn" data-id="${card.id}" title="Delete" aria-label="Delete this card">🗑</button>
         </span>
       </div>
     </div>`;
@@ -1206,11 +1264,25 @@ function openWebhookModal() {
       <div class="modal-actions">
         <button class="btn secondary" id="webhook-remove">Remove</button>
         <button class="btn secondary" id="webhook-cancel">Cancel</button>
+        <button class="btn secondary" id="webhook-test">🧪 Send test</button>
         <button class="btn" id="webhook-save">Save</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
   overlay.querySelector('#webhook-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#webhook-test').onclick = async () => {
+    const webhook_url = overlay.querySelector('#webhook-url').value.trim();
+    if (webhook_url !== (retroWebhookUrl || '')) {
+      toast('Save the URL first, then send the test', 'points');
+      return;
+    }
+    try {
+      await Auth.api(`/retros/${currentRetroId}/webhook-test`, { method: 'POST' });
+      toast('Test sent! Check your Slack/Teams channel 🔔');
+    } catch (err) {
+      toast(err.message, 'points');
+    }
+  };
   overlay.querySelector('#webhook-remove').onclick = async () => {
     await Auth.api(`/retros/${currentRetroId}/webhook`, { method: 'PUT', body: JSON.stringify({ webhook_url: null }) });
     retroWebhookUrl = null;

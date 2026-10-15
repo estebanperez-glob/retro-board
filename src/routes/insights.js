@@ -243,6 +243,35 @@ function register(app) {
     res.json({ ok: true, webhook_url: url });
   }));
 
+  // --- Webhook test message (admin) ---
+  app.post('/api/retros/:id/webhook-test', ah(async (req, res) => {
+    const retro = await requireRetroAdmin(req, res);
+    if (!retro) return;
+    if (!retro.webhook_url) return res.status(400).json({ error: 'Save a webhook URL first' });
+    const ok = await notifyWebhook(retro.id, '🧪 Test message from Retro Board — notifications are working! 🔔');
+    if (!ok) return res.status(502).json({ error: 'Webhook endpoint did not respond OK' });
+    res.json({ ok: true });
+  }));
+
+  // --- Full JSON backup (login; all retros created by the user) ---
+  app.get('/api/backup.json', ah(async (req, res) => {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Log in to download a backup' });
+    const retros = await db.all('SELECT * FROM retros WHERE created_by = $1 ORDER BY created_at', [user.username]);
+    const backup = { generated_at: new Date().toISOString(), user: user.username, retros: [] };
+    for (const retro of retros) {
+      const [participants, cards, votes, commitments] = await Promise.all([
+        db.all('SELECT * FROM participants WHERE retro_id = $1', [retro.id]),
+        db.all('SELECT * FROM cards WHERE retro_id = $1', [retro.id]),
+        db.all('SELECT * FROM votes WHERE retro_id = $1', [retro.id]),
+        db.all('SELECT * FROM commitments WHERE retro_id = $1', [retro.id]),
+      ]);
+      backup.retros.push({ retro, participants, cards, votes, commitments });
+    }
+    res.setHeader('Content-Disposition', `attachment; filename="retro-board-backup-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.json(backup);
+  }));
+
   // --- Commitments CSV export (Jira/Azure DevOps import) ---
   app.get('/api/retros/:id/commitments.csv', ah(async (req, res) => {
     const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
