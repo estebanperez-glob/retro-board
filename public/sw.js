@@ -1,6 +1,6 @@
 // Retro Board service worker: minimal offline shell + installability.
 // Strategy: network-first for pages/API, cache-first for static assets.
-const CACHE_NAME = 'retro-board-v1';
+const CACHE_NAME = 'retro-board-v2';
 const CORE_ASSETS = [
   '/css/styles.css',
   '/js/i18n.js',
@@ -9,6 +9,7 @@ const CORE_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting(); // Take over immediately so asset updates reach users
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll([
       '/css/styles.css',

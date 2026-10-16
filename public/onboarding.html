@@ -7,6 +7,7 @@
   <meta name="description" content="How to use Retro Board: create an account, create a retro, invite your team, run the session, track commitments and export minutes.">
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="manifest" href="/manifest.json">
+  <script>if(localStorage.getItem("retroTheme")==="dark")document.documentElement.classList.add("dark-init");</script>
 </head>
 <body>
   <a class="skip-link" href="#app">Skip to content</a>
@@ -30,7 +31,7 @@
         <li><span data-i18n="guide.quickstart.s3"><strong>Run the retro</strong> — everyone adds cards, votes with dots, and discusses in real time. Use the timer to timebox each column.</span></li>
         <li><span data-i18n="guide.quickstart.s4"><strong>Close the loop</strong> — turn the top-voted cards into commitments with an assignee and due date, then track them in the kanban.</span></li>
       </ol>
-      <a class="btn" href="/">🎨 Start your first retro</a>
+      <div style="margin-top:16px"><a class="btn" href="/">🎨 Start your first retro</a></div>
     </section>
 
     <section class="home-hero" style="margin-top:24px">
