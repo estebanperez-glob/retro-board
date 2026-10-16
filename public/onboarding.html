@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retro Board — Guide</title>
+  <meta name="description" content="How to use Retro Board: create an account, create a retro, invite your team, run the session, track commitments and export minutes.">
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="manifest" href="/manifest.json">
+</head>
+<body>
+  <a class="skip-link" href="#app">Skip to content</a>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="/">🎨 Retro Board</a></h1>
+      <nav></nav>
+    </header>
+
+    <section class="home-hero">
+      <h2 data-i18n="guide.title">Retro Board Guide 📖</h2>
+      <p class="muted" data-i18n="hero.subtitle">Everything you need to run your first retrospective in 10 minutes — from creating your account to exporting the minutes.</p>
+    </section>
+
+    <section class="home-hero" style="margin-top:24px">
+      <h3 data-i18n="guide.quickstart.title">🚀 Quick start (5 steps)</h3>
+      <ol class="how-it-works">
+        <li><span data-i18n="guide.quickstart.s1"><strong>Create your account</strong> — click Login / Register, choose a username and password. Only the retro facilitator needs an account; participants join with just a name.</span></li>
+        <li><span data-i18n="guide.quickstart.s2"><strong>Create a retro</strong> — from Home, pick a title, sprint (optional) and one of the 8 templates, or define your own columns.</span></li>
+        <li><span data-i18n="guide.quickstart.s2b"><strong>Share the invitation link</strong> — copy the link shown after creating the retro (it includes the invitation key) and send it to your team. They join with just their name, no login.</span></li>
+        <li><span data-i18n="guide.quickstart.s3"><strong>Run the retro</strong> — everyone adds cards, votes with dots, and discusses in real time. Use the timer to timebox each column.</span></li>
+        <li><span data-i18n="guide.quickstart.s4"><strong>Close the loop</strong> — turn the top-voted cards into commitments with an assignee and due date, then track them in the kanban.</span></li>
+      </ol>
+      <a class="btn" href="/">🎨 Start your first retro</a>
+    </section>
+
+    <section class="home-hero" style="margin-top:24px">
+      <h3 data-i18n="guide.invite.title">🔗 Inviting your team</h3>
+      <p data-i18n="guide.invite.p1">Every retro is private. Access is granted only through the invitation link, which looks like <code>/retro.html?id=7&amp;key=abc123</code>. Anyone with the link joins instantly with just a name.</p>
+      <ul>
+        <li data-i18n="guide.invite.li1">Share the link in your team channel (Slack/Teams) at the start of the retro.</li>
+        <li data-i18n="guide.invite.li2">Participants appear in the Participants list; the retro admin can see who joined.</li>
+        <li data-i18n="guide.invite.li3">Enable anonymous mode when creating the retro if you want card authors hidden.</li>
+        <li data-i18n="guide.invite.li3b">If someone loses the link, the admin can re-share it from the retro board.</li>
+      </ul>
+    </section>
+
+    <section class="home-hero" style="margin-top:24px">
+      <h3 data-i18n="guide.run.title">🧭 Running the session (facilitator agenda)</h3>
+      <ol class="how-it-works">
+        <li><span data-i18n="guide.run.s1"><strong>Set the stage (2 min)</strong> — remind the team of the sprint goal and the prime directive.</span></li>
+        <li><span data-i18n="guide.run.s2"><strong>Gather data (10 min)</strong> — everyone adds cards to the columns. Use the timer (e.g. 5 minutes) and enable anonymous mode if the topic is sensitive.</span></li>
+        <li><span data-i18n="guide.run.s2b2"><strong>Group and discuss (10 min)</strong> — use Auto-Group to cluster similar cards, then dot-vote on the topics that matter most.</span></li>
+        <li><span data-i18n="guide.run.s3"><strong>Decide (10 min)</strong> — take the top-voted cards and turn them into commitments: what, who, when.</span></li>
+        <li><span data-i18n="guide.run.s4"><strong>Close</strong> — check the Team Health Score, export the minutes and share them with the team.</span></li>
+      </ol>
+    </section>
+
+    <section class="home-hero" style="margin-top:24px">
+      <h3 data-i18n="guide.commitments.title">✅ Following through on commitments</h3>
+      <ul>
+        <li data-i18n="guide.commitments.li1">Commitments live in the kanban: drag them across Pending / In Progress / Done.</li>
+        <li data-i18n="guide.commitments.li2">Each one has an assignee and a due date; overdue items turn red and due-soon items show an orange badge.</li>
+        <li data-i18n="guide.commitments.li3">Track yours in the My Commitments page — the nav shows a red counter for overdue items.</li>
+        <li data-i18n="guide.commitments.li4">Completing a commitment earns 10 points (+5 streak bonus if on time) on the global leaderboard.</li>
+        <li data-i18n="guide.commitments.li4b">Starting the next retro? Use the carry-over option to bring pending commitments into the new retro.</li>
+      </ul>
+    </section>
+
+    <section class="home-hero" style="margin-top:24px">
+      <h3 data-i18n="guide.exports.title">📤 Exports &amp; integrations</h3>
+      <ul>
+        <li data-i18n="guide.exports.li1"><strong>Minutes (acta)</strong> — download any retro as a Markdown document with participants, cards, votes and commitments.</li>
+        <li data-i18n="guide.exports.li2"><strong>CSV</strong> — export the commitments of any retro for spreadsheets or Jira import.</li>
+        <li data-i18n="guide.exports.li3"><strong>JSON backup</strong> — download all your data from My Account.</li>
+        <li data-i18n="guide.exports.li3b"><strong>Webhooks</strong> — send retro events to Slack, Teams or any webhook endpoint (configure and test it on the board).</li>
+      </ul>
+    </section>
+
+    <section class="home-hero" style="margin-top:24px">
+      <h3 data-i18n="guide.demo.title">🎬 5-minute demo script</h3>
+      <p class="muted" data-i18n="guide.demo.intro">Use this script to demo the tool to your squad in about 5 minutes.</p>
+      <ol class="how-it-works">
+        <li><span data-i18n="guide.demo.s1">(0:00) Open Retro Board and log in. Show the Home page and the templates gallery.</span></li>
+        <li><span data-i18n="guide.demo.s2">(0:30) Create a retro called "Sprint 42 Retro" with the Classic template.</span></li>
+        <li><span data-i18n="guide.demo.s3">(1:30) Copy the invitation link and open it in a second browser/incognito window — join with another name.</span></li>
+        <li><span data-i18n="guide.demo.s4">(2:00) Add a card in each column from both windows; show the real-time sync.</span></li>
+        <li><span data-i18n="guide.demo.s5">(3:00) Vote on a couple of cards, then run Auto-Group to cluster similar ones.</span></li>
+        <li><span data-i18n="guide.demo.s5b">(3:00) Create a commitment from a top card, set an assignee and due date, and show the kanban.</span></li>
+        <li><span data-i18n="guide.demo.s6">(4:00) Show the AI Summary, the Team Health Score and the leaderboard.</span></li>
+        <li><span data-i18n="guide.demo.s7">(4:30) Download the minutes (Markdown) and show the final document.</span></li>
+      </ol>
+    </section>
+
+    <section class="home-hero" style="margin-top:24px">
+      <h3 data-i18n="guide.rollout.title">🚀 Rolling it out to your studio</h3>
+      <ul>
+        <li><span data-i18n="guide.rollout.li1"><strong>Start small:</strong> pick 2–3 squads to pilot it for one sprint.</span></li>
+        <li data-i18n="guide.rollout.li2"><strong>Champions:</strong> nominate one person per squad to facilitate their first retro with the tool and gather feedback.</li>
+        <li><span data-i18n="guide.rollout.li2b"><strong>Share the guide:</strong> send this page and the templates gallery to your squad leads.</span></li>
+        <li><span data-i18n="guide.rollout.li3"><strong>Collect feedback:</strong> agree on a channel (chat group, form, or retro about the retro) so improvements keep coming.</span></li>
+        <li><span data-i18n="guide.rollout.li4"><strong>Iterate:</strong> new templates, columns and features can be added based on real usage — just ask.</span></li>
+      </ul>
+    </section>
+
+    <section class="home-hero" style="margin-top:24px">
+      <h3 data-i18n="guide.faq.title">❓ FAQ</h3>
+      <dl>
+        <dt data-i18n="guide.faq.q1">Do participants need an account?</dt>
+        <dd data-i18n="guide.faq.a1">No. Only the person who creates the retro needs an account. Everyone else joins with the invitation link and their name.</dd>
+        <dt data-i18n="faq.q2">Is my retro private?</dt>
+        <dd data-i18n="faq.a1">Yes. Retro content is only visible to the retro admin and the people who join with the invitation link.</dd>
+        <dt>Is it free?</dt>
+        <dd>Yes — Retro Board is free for internal use.</dd>
+      </dl>
+    </section>
+
+    <section class="home-hero" style="margin-top:24px">
+      <a class="btn" href="/">🎨 Start your first retro</a>
+      <a class="btn secondary" href="/templates.html">📖 Browse templates</a>
+    </section>
+
+    <footer class="site-footer">
+      <p><a href="/">Retro Board</a> — fun, actionable retrospectives for agile teams.</p>
+    </footer>
+  </div>
+  <script src="/js/i18n.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    Auth.renderNav();
+    if (window.I18N) window.I18N.apply();
+  </script>
+  <script>
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+  </script>
+</body>
+</html>

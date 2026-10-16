@@ -46,6 +46,7 @@ const Auth = {
       <a href="/"${active('/')}>Home</a>
       <a href="/history.html"${active('/history.html')}>History</a>
       <a href="/leaderboard.html"${active('/leaderboard.html')}>Leaderboard</a>
+      <a href="/onboarding.html"${active('/onboarding.html')}>Guide</a>
       ${this.username ? `<a href="/my-commitments.html"${active('/my-commitments.html')}>My Commitments</a>` : ''}
       ${authArea}
       <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">🌙</button>
@@ -76,6 +77,7 @@ const Auth = {
         ['a[href="/"]', 'nav.home'],
         ['a[href="/history.html"]', 'nav.history'],
         ['a[href="/leaderboard.html"]', 'nav.leaderboard'],
+        ['a[href="/onboarding.html"]', 'nav.guide'],
         ['a[href="/my-commitments.html"]', 'nav.myCommitments'],
         ['a[href="/account.html"]', 'nav.account'],
         ['#nav-logout', 'nav.logout'],
