@@ -289,6 +289,58 @@
     'auth.newPassLabel': { en: 'New password', es: 'Nueva contraseña' },
     'auth.answerPassRequired': { en: 'Answer and new password are required', es: 'Respuesta y nueva contraseña son obligatorias' },
     'auth.passUpdated': { en: 'Password updated! You can now log in with your new password.', es: '¡Contraseña actualizada! Ya puedes ingresar con tu nueva contraseña.' },
+    // Guide page (onboarding.html)
+    'guide.title': { en: 'Retro Board Guide 📖', es: 'Guía de Retro Board 📖' },
+    'guide.quickstart.title': { en: '🚀 Quick start (5 steps)', es: '🚀 Inicio rápido (5 pasos)' },
+    'guide.quickstart.s1': { en: '<strong>Create your account</strong> — click Login / Register, choose a username and password. Only the retro facilitator needs an account; participants join with just a name.', es: '<strong>Crea tu cuenta</strong> — haz clic en Ingresar / Registrarse, elige usuario y contraseña. Solo quien facilita la retro necesita cuenta; los participantes entran solo con su nombre.' },
+    'guide.quickstart.s2': { en: '<strong>Create a retro</strong> — from Home, pick a title, sprint (optional) and one of the 8 templates, or define your own columns.', es: '<strong>Crea una retro</strong> — desde Inicio, elige un título, sprint (opcional) y una de las 8 plantillas, o define tus propias columnas.' },
+    'guide.quickstart.s2b': { en: '<strong>Share the invitation link</strong> — copy the link shown after creating the retro (it includes the invitation key) and send it to your team. They join with just their name, no login.', es: '<strong>Comparte el link de invitación</strong> — copia el link que aparece al crear la retro (incluye la clave de invitación) y envíalo a tu equipo. Entran solo con su nombre, sin login.' },
+    'guide.quickstart.s3': { en: '<strong>Run the retro</strong> — everyone adds cards, votes with dots, and discusses in real time. Use the timer to timebox each column.', es: '<strong>Ejecuta la retro</strong> — todos agregan tarjetas, votan con puntos y discuten en tiempo real. Usa el temporizador para limitar el tiempo de cada columna.' },
+    'guide.quickstart.s4': { en: '<strong>Close the loop</strong> — turn the top-voted cards into commitments with an assignee and due date, then track them in the kanban.', es: '<strong>Cierra el ciclo</strong> — convierte las tarjetas más votadas en compromisos con responsable y fecha límite, y hazles seguimiento en el kanban.' },
+    'guide.invite.title': { en: '🔗 Inviting your team', es: '🔗 Invitar a tu equipo' },
+    'guide.invite.p1': { en: 'Every retro is private. Access is granted only through the invitation link, which looks like <code>/retro.html?id=7&amp;key=abc123</code>. Anyone with the link joins instantly with just a name.', es: 'Cada retro es privada. El acceso se otorga solo mediante el link de invitación, que se ve así: <code>/retro.html?id=7&amp;key=abc123</code>. Cualquiera con el link entra al instante solo con su nombre.' },
+    'guide.invite.li1': { en: 'Share the link in your team channel (Slack/Teams) at the start of the retro.', es: 'Comparte el link en el canal de tu equipo (Slack/Teams) al inicio de la retro.' },
+    'guide.invite.li2': { en: 'Participants appear in the Participants list; the retro admin can see who joined.', es: 'Los participantes aparecen en la lista de Participantes; el admin de la retro puede ver quién entró.' },
+    'guide.invite.li3': { en: 'Enable anonymous mode when creating the retro if you want card authors hidden.', es: 'Activa el modo anónimo al crear la retro si quieres ocultar los autores de las tarjetas.' },
+    'guide.invite.li3b': { en: 'If someone loses the link, the admin can re-share it from the retro board.', es: 'Si alguien pierde el link, el admin puede volver a compartirlo desde el tablero de la retro.' },
+    'guide.run.title': { en: '🧭 Running the session (facilitator agenda)', es: '🧭 Conducción de la sesión (agenda del facilitador)' },
+    'guide.run.s1': { en: '<strong>Set the stage (2 min)</strong> — remind the team of the sprint goal and the prime directive.', es: '<strong>Ambientar (2 min)</strong> — recuérdale al equipo la meta del sprint y la directriz primaria.' },
+    'guide.run.s2': { en: '<strong>Gather data (10 min)</strong> — everyone adds cards to the columns. Use the timer (e.g. 5 minutes) and enable anonymous mode if the topic is sensitive.', es: '<strong>Recopilar datos (10 min)</strong> — todos agregan tarjetas a las columnas. Usa el temporizador (p. ej. 5 minutos) y activa el modo anónimo si el tema es sensible.' },
+    'guide.run.s2b2': { en: '<strong>Group and discuss (10 min)</strong> — use Auto-Group to cluster similar cards, then dot-vote on the topics that matter most.', es: '<strong>Agrupar y discutir (10 min)</strong> — usa Auto-Agrupar para agrupar tarjetas similares y luego vota con puntos los temas más importantes.' },
+    'guide.run.s3': { en: '<strong>Decide (10 min)</strong> — take the top-voted cards and turn them into commitments: what, who, when.', es: '<strong>Decidir (10 min)</strong> — toma las tarjetas más votadas y conviértelas en compromisos: qué, quién, cuándo.' },
+    'guide.run.s4': { en: '<strong>Close</strong> — check the Team Health Score, export the minutes and share them with the team.', es: '<strong>Cerrar</strong> — revisa el Team Health Score, exporta el acta y compártela con el equipo.' },
+    'guide.commitments.title': { en: '✅ Following through on commitments', es: '✅ Seguimiento de compromisos' },
+    'guide.commitments.li1': { en: 'Commitments live in the kanban: drag them across Pending / In Progress / Done.', es: 'Los compromisos viven en el kanban: arrástralos entre Pendiente / En Progreso / Hecho.' },
+    'guide.commitments.li2': { en: 'Each one has an assignee and a due date; overdue items turn red and due-soon items show an orange badge.', es: 'Cada uno tiene responsable y fecha límite; los vencidos se ponen rojos y los próximos a vencer muestran un badge naranja.' },
+    'guide.commitments.li3': { en: 'Track yours in the My Commitments page — the nav shows a red counter for overdue items.', es: 'Haz seguimiento de los tuyos en la página Mis Compromisos — el nav muestra un contador rojo de vencidos.' },
+    'guide.commitments.li4': { en: 'Completing a commitment earns 10 points (+5 streak bonus if on time) on the global leaderboard.', es: 'Completar un compromiso da 10 puntos (+5 de bonus por racha si es a tiempo) en el leaderboard global.' },
+    'guide.commitments.li4b': { en: 'Starting the next retro? Use the carry-over option to bring pending commitments into the new retro.', es: '¿Empiezas la próxima retro? Usa la opción de arrastre para llevar los compromisos pendientes a la nueva retro.' },
+    'guide.exports.title': { en: '📤 Exports & integrations', es: '📤 Exportaciones e integraciones' },
+    'guide.exports.li1': { en: '<strong>Minutes (acta)</strong> — download any retro as a Markdown document with participants, cards, votes and commitments.', es: '<strong>Acta</strong> — descarga cualquier retro como documento Markdown con participantes, tarjetas, votos y compromisos.' },
+    'guide.exports.li2': { en: '<strong>CSV</strong> — export the commitments of any retro for spreadsheets or Jira import.', es: '<strong>CSV</strong> — exporta los compromisos de cualquier retro para hojas de cálculo o importar a Jira.' },
+    'guide.exports.li3': { en: '<strong>JSON backup</strong> — download all your data from My Account.', es: '<strong>Backup JSON</strong> — descarga todos tus datos desde Mi Cuenta.' },
+    'guide.exports.li3b': { en: '<strong>Webhooks</strong> — send retro events to Slack, Teams or any webhook endpoint (configure and test it on the board).', es: '<strong>Webhooks</strong> — envía eventos de la retro a Slack, Teams o cualquier endpoint webhook (configúralo y pruébalo en el tablero).' },
+    'guide.demo.title': { en: '🎬 5-minute demo script', es: '🎬 Guion de demo de 5 minutos' },
+    'guide.demo.intro': { en: 'Use this script to demo the tool to your squad in about 5 minutes.', es: 'Usa este guion para demostrar la herramienta a tu squad en unos 5 minutos.' },
+    'guide.demo.s1': { en: '(0:00) Open Retro Board and log in. Show the Home page and the templates gallery.', es: '(0:00) Abre Retro Board e inicia sesión. Muestra la página de Inicio y la galería de plantillas.' },
+    'guide.demo.s2': { en: '(0:30) Create a retro called "Sprint 42 Retro" with the Classic template.', es: '(0:30) Crea una retro llamada "Retro Sprint 42" con la plantilla Classic.' },
+    'guide.demo.s3': { en: '(1:30) Copy the invitation link and open it in a second browser/incognito window — join with another name.', es: '(1:30) Copia el link de invitación y ábrelo en un segundo navegador/ventana de incógnito — entra con otro nombre.' },
+    'guide.demo.s4': { en: '(2:00) Add a card in each column from both windows; show the real-time sync.', es: '(2:00) Agrega una tarjeta en cada columna desde ambas ventanas; muestra la sincronización en tiempo real.' },
+    'guide.demo.s5': { en: '(3:00) Vote on a couple of cards, then run Auto-Group to cluster similar ones.', es: '(3:00) Vota un par de tarjetas y luego usa Auto-Agrupar para agrupar las similares.' },
+    'guide.demo.s5b': { en: '(3:00) Create a commitment from a top card, set an assignee and due date, and show the kanban.', es: '(3:00) Crea un compromiso desde una tarjeta top, asigna responsable y fecha límite, y muestra el kanban.' },
+    'guide.demo.s6': { en: '(4:00) Show the AI Summary, the Team Health Score and the leaderboard.', es: '(4:00) Muestra el Resumen IA, el Team Health Score y el leaderboard.' },
+    'guide.demo.s7': { en: '(4:30) Download the minutes (Markdown) and show the final document.', es: '(4:30) Descarga el acta (Markdown) y muestra el documento final.' },
+    'guide.rollout.title': { en: '🚀 Rolling it out to your studio', es: '🚀 Lanzamiento en tu studio' },
+    'guide.rollout.li1': { en: '<strong>Start small:</strong> pick 2–3 squads to pilot it for one sprint.', es: '<strong>Empieza pequeño:</strong> elige 2–3 squads para pilotarlo durante un sprint.' },
+    'guide.rollout.li2': { en: '<strong>Champions:</strong> nominate one person per squad to facilitate their first retro with the tool and gather feedback.', es: '<strong>Champions:</strong> nombra una persona por squad para facilitar su primera retro con la herramienta y recoger feedback.' },
+    'guide.rollout.li2b': { en: '<strong>Share the guide:</strong> send this page and the templates gallery to your squad leads.', es: '<strong>Comparte la guía:</strong> envía esta página y la galería de plantillas a tus squad leads.' },
+    'guide.rollout.li3': { en: '<strong>Collect feedback:</strong> agree on a channel (chat group, form, or retro about the retro) so improvements keep coming.', es: '<strong>Recoge feedback:</strong> acuerden un canal (grupo de chat, formulario o una retro sobre la retro) para que las mejoras sigan llegando.' },
+    'guide.rollout.li4': { en: '<strong>Iterate:</strong> new templates, columns and features can be added based on real usage — just ask.', es: '<strong>Itera:</strong> se pueden agregar nuevas plantillas, columnas y funciones según el uso real — solo pídelo.' },
+    'guide.faq.title': { en: '❓ FAQ', es: '❓ Preguntas frecuentes' },
+    'guide.faq.q1': { en: 'Do participants need an account?', es: '¿Los participantes necesitan cuenta?' },
+    'guide.faq.a1': { en: 'No. Only the person who creates the retro needs an account. Everyone else joins with the invitation link and their name.', es: 'No. Solo quien crea la retro necesita cuenta. Los demás entran con el link de invitación y su nombre.' },
+    'guide.faq.q3': { en: 'Is it free?', es: '¿Es gratis?' },
+    'guide.faq.a3': { en: 'Yes — Retro Board is free for internal use.', es: 'Sí — Retro Board es gratis para uso interno.' },
   };
 
   function t(key) {
@@ -303,7 +355,11 @@
     root.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
       const text = t(key);
-      if (text !== key) el.textContent = text;
+      if (text !== key) {
+        // Keys containing markup (<strong>, <code>) need innerHTML; plain text stays safe via textContent
+        if (text.includes('<')) el.innerHTML = text;
+        else el.textContent = text;
+      }
     });
     // Placeholders
     root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {

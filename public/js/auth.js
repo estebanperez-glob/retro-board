@@ -50,7 +50,7 @@ const Auth = {
       ${this.username ? `<a href="/my-commitments.html"${active('/my-commitments.html')}>My Commitments</a>` : ''}
       ${authArea}
       <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">🌙</button>
-      <button id="lang-toggle" class="theme-toggle" title="Toggle English/Español">${(localStorage.getItem('retroLang') || 'en') === 'es' ? 'EN' : 'ES'}</button>
+      <button id="lang-toggle" class="lang-toggle" title="Toggle English/Español">${(localStorage.getItem('retroLang') || 'en') === 'es' ? 'EN' : 'ES'}</button>
       ${page === '/account.html' ? '<a class="btn small secondary" href="javascript:history.back()">← Back</a>' : ''}`;
     const themeBtn = document.getElementById('theme-toggle');
     const syncThemeBtn = () => {

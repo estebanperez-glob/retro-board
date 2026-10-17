@@ -720,6 +720,22 @@ header nav a:hover { color: var(--accent); }
 }
 .theme-toggle:hover { transform: scale(1.1); }
 
+/* Language toggle: pill in the page's yellow so it stands out next to the theme button */
+.lang-toggle {
+  background: var(--yellow);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--ink);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.lang-toggle:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
+.dark-theme .lang-toggle { background: var(--yellow); color: var(--ink); }
+
 /* Kanban drag-over highlight */
 .kcards.drag-over {
   outline: 2px dashed var(--accent);
