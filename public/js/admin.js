@@ -112,7 +112,7 @@ function editUser(id, username, email) {
   if (newEmail !== email) body.email = newEmail.trim();
   if (!Object.keys(body).length) return;
   Auth.api(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(body) })
-    .then(() => { Auth.toast('User updated ✅'); loadUsers(); })
+    .then(() => { Auth.toast(I18N.t('admin.userUpdated')); loadUsers(); })
     .catch(err => Auth.toast(err.message));
 }
 
@@ -120,7 +120,7 @@ async function deleteUser(id, username) {
   if (!confirm(`Delete user "${username}"? Their retros will be reassigned to you so history is kept.`)) return;
   try {
     await Auth.api(`/admin/users/${id}`, { method: 'DELETE' });
-    Auth.toast('User deleted — their retros are now yours');
+    Auth.toast(I18N.t('admin.userDeleted'));
     loadUsers();
   } catch (err) {
     Auth.toast(err.message);

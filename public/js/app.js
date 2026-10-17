@@ -107,8 +107,8 @@ function featuredTemplateBanner() {
   const featured = TEMPLATES[featuredId];
   return `
     <div class="featured-template">
-      <span>⭐ <strong>Featured this month:</strong> ${featured.name} — a fresh format to try with your team</span>
-      <button class="btn small" id="use-featured" data-tpl="${featuredId}">Try it</button>
+      <span>⭐ <strong>${I18N.t('home.featured')}</strong> ${featured.name} — a fresh format to try with your team</span>
+      <button class="btn small" id="use-featured" data-tpl="${featuredId}">${I18N.t('home.tryIt')}</button>
     </div>`;
 }
 
@@ -119,27 +119,27 @@ async function renderHome() {
   const hero = `
     <section class="graffiti-hero">
       <h2 class="graffiti-title" aria-label="Retro Board">${graffitiTitle}</h2>
-      <p class="graffiti-tagline">Spray your ideas. Vote the best. Ship the fixes. 🎨</p>
+      <p class="graffiti-tagline">${I18N.t('home.tagline')}</p>
     </section>
     <div class="home-hero">
-      <h2>Make your retros fun and actionable 🎉</h2>
-      <p class="muted">Create a retrospective, share the invitation link with your team, and track commitments together.</p>
-      ${Auth.username ? '' : '<p class="muted" style="font-size:0.9rem">💡 <strong>Tip:</strong> log in to create and manage your own retro spaces. Participants join with the invitation link — no account needed.</p>'}
+      <h2>${I18N.t('home.heroTitle')}</h2>
+      <p class="muted">${I18N.t('home.heroSub')}</p>
+      ${Auth.username ? '' : `<p class="muted" style="font-size:0.9rem">${I18N.t('home.tip')}</p>`}
       <div class="join-form">
-        <input id="retro-title" placeholder="Retro title (e.g. Sprint 42 Retro)" style="min-width:260px">
-        <input id="retro-sprint" placeholder="Sprint (optional)" style="max-width:150px">
+        <input id="retro-title" placeholder="${I18N.t('home.retroTitlePh')}" style="min-width:260px">
+        <input id="retro-sprint" placeholder="${I18N.t('home.sprintPh')}" style="max-width:150px">
         <select id="retro-template">
           ${Object.entries(TEMPLATES).map(([id, t]) => `<option value="${id}">${t.name}</option>`).join('')}
-          <option value="custom">Custom columns…</option>
+          <option value="custom">${I18N.t('home.customColumns')}</option>
         </select>
-        <label class="check-label"><input type="checkbox" id="retro-anon"> Anonymous cards</label>
-        <button class="btn" id="create-retro">Create Retro</button>
+        <label class="check-label"><input type="checkbox" id="retro-anon"> ${I18N.t('home.anonCards')}</label>
+        <button class="btn" id="create-retro">${I18N.t('home.createRetro')}</button>
       </div>
       <div class="join-form">
-        <input id="join-id" placeholder="Retro ID to join" style="max-width:200px">
-        <button class="btn secondary" id="join-retro">Join Retro</button>
+        <input id="join-id" placeholder="${I18N.t('home.joinIdPh')}" style="max-width:200px">
+        <button class="btn secondary" id="join-retro">${I18N.t('home.joinRetro')}</button>
       </div>
-      <p class="muted" style="margin-top:12px"><a href="/templates.html">📖 Browse retro templates →</a></p>
+      <p class="muted" style="margin-top:12px"><a href="/templates.html">${I18N.t('home.browseTemplates')}</a></p>
       ${featuredTemplateBanner()}
     </div>`;
   app.innerHTML = hero + `<div id="dashboard-section"></div>`;
@@ -163,23 +163,23 @@ async function renderHome() {
   customEditor.id = 'custom-columns-editor';
   customEditor.className = 'custom-columns-editor hidden';
   customEditor.innerHTML = `
-    <p class="muted" style="font-size:0.85rem;margin:8px 0 4px">Define 2-8 columns (label = what participants see):</p>
+    <p class="muted" style="font-size:0.85rem;margin:8px 0 4px">${I18N.t('home.customColsHint')}</p>
     <div id="custom-col-rows"></div>
-    <button class="btn small secondary" id="add-custom-col">+ Add column</button>`;
+    <button class="btn small secondary" id="add-custom-col">${I18N.t('home.addColumn')}</button>`;
   templateSelect.closest('.join-form').after(customEditor);
   const rowsEl = document.getElementById('custom-col-rows');
   const addRow = (label = '') => {
     const row = document.createElement('div');
     row.className = 'custom-col-row';
-    row.innerHTML = `<input class="custom-col-label" placeholder="Column label (e.g. Risks)" maxlength="40">
-      <button class="btn small danger remove-col" title="Remove">✕</button>`;
+    row.innerHTML = `<input class="custom-col-label" placeholder="${I18N.t('home.colLabelPh')}" maxlength="40">
+      <button class="btn small danger remove-col" title="${I18N.t('home.removeCol')}">✕</button>`;
     row.querySelector('.remove-col').onclick = () => row.remove();
     if (label) row.querySelector('input').value = label;
     rowsEl.appendChild(row);
   };
   addRow(); addRow(); // start with two rows
   document.getElementById('add-custom-col').onclick = () => {
-    if (rowsEl.children.length >= 8) return toast('Maximum 8 columns');
+    if (rowsEl.children.length >= 8) return toast(I18N.t('home.maxCols'));
     addRow();
   };
   templateSelect.addEventListener('change', () => {
@@ -210,7 +210,7 @@ async function renderHome() {
         } catch { previewEl.innerHTML = ''; }
       } else previewEl.innerHTML = '';
     } else {
-      previewEl.innerHTML = '<span class="muted" style="font-size:0.85rem">Define your own columns below 👇</span>';
+      previewEl.innerHTML = `<span class="muted" style="font-size:0.85rem">${I18N.t('home.defineColsBelow')}</span>`;
     }
   }
   renderTemplatePreview();
@@ -235,7 +235,7 @@ async function renderHome() {
   document.getElementById('create-retro').onclick = async () => {
     if (!Auth.token) return Auth.openAuthModal('register');
     const title = document.getElementById('retro-title').value.trim();
-    if (!title) return toast('Give your retro a title first ✏️', 'points');
+    if (!title) return toast(I18N.t('board.titleFirst'), 'points');
     const sprint = document.getElementById('retro-sprint').value.trim();
     const template = document.getElementById('retro-template').value;
     const is_anonymous = document.getElementById('retro-anon').checked;
@@ -243,13 +243,13 @@ async function renderHome() {
     let templateParam = template;
     if (template.startsWith('saved:')) {
       const tpl = savedTemplates.find(t => String(t.id) === template.slice(6));
-      if (!tpl) return toast('Saved template not found', 'points');
+      if (!tpl) return toast(I18N.t('board.tplNotFound'), 'points');
       custom_columns = tpl.columns_json;
       templateParam = 'classic'; // ignored when custom_columns is set
     } else if (template === 'custom') {
       const labels = [...customEditor.querySelectorAll('.custom-col-row input')]
         .map(inp => inp.value.trim()).filter(Boolean);
-      if (labels.length < 2) return toast('Custom template needs at least 2 columns', 'points');
+      if (labels.length < 2) return toast(I18N.t('board.tplMinCols'), 'points');
       custom_columns = JSON.stringify(labels.map(label => ({
         key: label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'col',
         label,
@@ -281,9 +281,9 @@ async function createRetroWithCarryOver(title, sprint, template, is_anonymous, c
         overlay.innerHTML = `
           <div class="modal">
             <h3>📋 Carry over pending commitments</h3>
-            <p class="muted">The retro "<strong>${Auth.esc(previous.title)}</strong>" has ${pending.length} pending commitment(s):</p>
+            <p class="muted">The retro "<strong>${Auth.esc(previous.title)}</strong>" ${I18N.t('board.carryOverHas')} ${pending.length} ${I18N.t('board.carryOverPending')}</p>
             <div class="carry-list">${list}</div>
-            <p class="muted">Import them into the new retro?</p>
+            <p class="muted">${I18N.t('board.carryOverImport')}</p>
             <div class="modal-actions">
               <button class="btn secondary" id="carry-no">No, start fresh</button>
               <button class="btn" id="carry-yes">Yes, import them</button>
@@ -320,7 +320,7 @@ async function renderCommitmentsDashboard() {
     return;
   }
   if (!items.length) {
-    section.innerHTML = '<p class="muted" style="text-align:center">No pending commitments. Great job! 🎉</p>';
+    section.innerHTML = `<p class="muted" style="text-align:center">${I18N.t('board.noPendingCommitments')}</p>`;
     return;
   }
   const overdue = items.filter(i => i.is_overdue);
@@ -361,8 +361,8 @@ function copyCommitmentsSummary(items) {
     lines.push('');
   }
   navigator.clipboard.writeText(lines.join('\n'))
-    .then(() => toast('Summary copied! Paste it in Slack or email ✅'))
-    .catch(() => toast('Could not copy to clipboard', 'points'));
+    .then(() => toast(I18N.t('board.summaryCopied')))
+    .catch(() => toast(I18N.t('board.copyFailed'), 'points'));
 }
 
 // ---------- Retro board ----------
@@ -400,41 +400,41 @@ async function renderRetro() {
     <div class="retro-header">
       <h2>${Auth.esc(retro.title)} ${retro.status === 'closed' ? '✅' : '🟢'} ${retro.is_anonymous ? '🎭' : ''}</h2>
       <p class="muted">
-        ${retro.is_anonymous ? '🎭 Anonymous mode — card authors are hidden. ' : ''}
-        ${retro.created_by ? `Admin: <strong>${Auth.esc(retro.created_by)}</strong>. ` : ''}
-        You are <strong>${Auth.esc(currentUser)}</strong>.
+        ${retro.is_anonymous ? I18N.t('board.anonMode') + ' ' : ''}
+        ${retro.created_by ? `${I18N.t('board.admin')} <strong>${Auth.esc(retro.created_by)}</strong>. ` : ''}
+        ${I18N.t('board.youAre')} <strong>${Auth.esc(currentUser)}</strong>.
       </p>
       ${retroIsAdmin ? `
         <div class="invite-box">
-          <span class="muted">Invitation link:</span>
+          <span class="muted">${I18N.t('board.inviteLink')}</span>
           <code id="invite-link">${location.origin}/retro.html?id=${retro.id}&key=${retroJoinCode}</code>
-          <button class="btn small secondary" id="copy-invite">Copy</button>
+          <button class="btn small secondary" id="copy-invite">${I18N.t('board.copy')}</button>
         </div>` : ''}
       <div class="participants-bar" id="participants-bar"></div>
       <div class="mood-bar" id="mood-bar"></div>
       <div style="margin-top:8px">
         ${retroIsAdmin ? `
-          <button class="btn small secondary" id="close-retro" ${retro.status === 'closed' ? 'disabled' : ''}>Close Retro</button>
-          <button class="btn small secondary" id="reopen-retro" ${retro.status === 'open' ? 'disabled' : ''}>Reopen Retro</button>
-          <button class="btn small secondary" id="duplicate-retro">⧉ Duplicate</button>
-          <button class="btn small secondary" id="save-template">💾 Save as Template</button>
-          <button class="btn small danger" id="delete-retro">Delete Retro</button>
+          <button class="btn small secondary" id="close-retro" ${retro.status === 'closed' ? 'disabled' : ''}>${I18N.t('board.closeRetro')}</button>
+          <button class="btn small secondary" id="reopen-retro" ${retro.status === 'open' ? 'disabled' : ''}>${I18N.t('board.reopen')}</button>
+          <button class="btn small secondary" id="duplicate-retro">${I18N.t('board.duplicate')}</button>
+          <button class="btn small secondary" id="save-template">${I18N.t('board.saveTemplate')}</button>
+          <button class="btn small danger" id="delete-retro">${I18N.t('board.deleteRetro')}</button>
         ` : ''}
         <span class="muted" id="votes-counter" style="margin-left:8px"></span>
       </div>
     </div>
     <div class="board" id="board"></div>
-    <h2 style="margin-top:40px">📋 Commitments</h2>
-    <p class="muted">Drag cards between columns. Mark as done to award 10 points!</p>
+    <h2 style="margin-top:40px">${I18N.t('board.commitments')}</h2>
+    <p class="muted">${I18N.t('board.kanbanHint')}</p>
     <div class="kanban" id="kanban"></div>
     <div class="retro-actions" style="margin-top:24px">
-      <button class="btn" id="add-commitment">+ Add Commitment</button>
-      <a class="btn secondary" href="/api/retros/${currentRetroId}/acta?token=${encodeURIComponent(storedToken || '')}" download style="text-decoration:none;display:inline-block;margin-left:8px">⬇ Export Minutes (acta)</a>
-      <button class="btn secondary" id="export-pdf" style="margin-left:8px">🖨 Export PDF</button>
-      <button class="btn secondary" id="export-csv" style="margin-left:8px">📊 Export CSV (Jira/ADO)</button>
-      <button class="btn secondary" id="ai-summary" style="margin-left:8px">✨ AI Summary</button>
-      <button class="btn secondary" id="auto-group" style="margin-left:8px">🗂 Auto-group Cards</button>
-      <button class="btn secondary" id="facilitator-timer" style="margin-left:8px">⏱ Facilitator Timer</button>
+      <button class="btn" id="add-commitment">+ ${I18N.t('board.addCommitment')}</button>
+      <a class="btn secondary" href="/api/retros/${currentRetroId}/acta?token=${encodeURIComponent(storedToken || '')}" download style="text-decoration:none;display:inline-block;margin-left:8px">${I18N.t('board.exportActa')}</a>
+      <button class="btn secondary" id="export-pdf" style="margin-left:8px">${I18N.t('board.exportPdf')}</button>
+      <button class="btn secondary" id="export-csv" style="margin-left:8px">${I18N.t('board.exportCsvJira')}</button>
+      <button class="btn secondary" id="ai-summary" style="margin-left:8px">${I18N.t('board.summary')}</button>
+      <button class="btn secondary" id="auto-group" style="margin-left:8px">${I18N.t('board.autoGroupCards')}</button>
+      <button class="btn secondary" id="facilitator-timer" style="margin-left:8px">${I18N.t('board.facilitatorTimer')}</button>
     </div>`;
 
   renderParticipants(participants);
@@ -453,19 +453,19 @@ function renderJoinScreen(message) {
       const key = new URLSearchParams(location.search).get('key') || '';
       app.innerHTML = `
         <div class="home-hero">
-          <h2>Join ${preview ? `"${Auth.esc(preview.title)}"` : 'this retrospective'} 👋</h2>
+          <h2>${I18N.t('join.btn')} ${preview ? `"${Auth.esc(preview.title)}"` : I18N.t('join.thisRetro')} 👋</h2>
           ${message ? `<p class="muted" style="color:var(--red)">${Auth.esc(message)}</p>` : ''}
           <div class="join-form">
-            <input id="join-name" placeholder="Your name" style="min-width:220px">
-            <input id="join-code" placeholder="Invitation code" value="${Auth.esc(key)}" style="max-width:180px">
-            <button class="btn" id="join-btn">Join</button>
+            <input id="join-name" placeholder="${I18N.t('join.namePh')}" style="min-width:220px">
+            <input id="join-code" placeholder="${I18N.t('join.codePh')}" value="${Auth.esc(key)}" style="max-width:180px">
+            <button class="btn" id="join-btn">${I18N.t('join.btn')}</button>
           </div>
-          <p class="muted" style="font-size:0.85rem">The invitation code comes in the link the admin shared with you.</p>
+          <p class="muted" style="font-size:0.85rem">${I18N.t('join.hint')}</p>
         </div>`;
       const join = async () => {
         const name = document.getElementById('join-name').value.trim();
         const join_code = document.getElementById('join-code').value.trim();
-        if (!name) return toast('Please enter your name', 'points');
+        if (!name) return toast(I18N.t('join.enterName'), 'points');
         try {
           const result = await Auth.api(`/retros/${currentRetroId}/join`, {
             method: 'POST', body: JSON.stringify({ name, join_code }),
@@ -512,11 +512,11 @@ function renderMood(participants) {
     .join(' ');
   const myMood = participants.find(p => p.name === currentUser)?.mood || null;
   bar.innerHTML = `
-    <span class="muted">Team mood:</span>
+    <span class="muted">${I18N.t('board.teamMood')}</span>
     ${MOOD_OPTIONS.map(m => `
       <button class="mood-btn ${myMood === m.key ? 'selected' : ''}" data-mood="${m.key}" title="${m.label}">${m.emoji}</button>
     `).join('')}
-    <span class="mood-summary" id="mood-summary">${summary || '<span class="muted">No moods yet</span>'}</span>`;
+    <span class="mood-summary" id="mood-summary">${summary || `<span class="muted">${I18N.t('board.noMoods')}</span>`}</span>`;
   bar.querySelectorAll('.mood-btn').forEach(btn => {
     btn.onclick = async () => {
       try {
@@ -540,11 +540,11 @@ function renderBoard(cards, template) {
       <h3>${label} <span class="col-count">${cards.filter(c => c.column_type === col).length}</span></h3>
       <div class="cards" data-col="${col}">
         ${cards.filter(c => c.column_type === col).map(renderCard).join('') ||
-          '<p class="empty-column muted">No cards yet — be the first to add one! 🎨</p>'}
+          `<p class="empty-column muted">${I18N.t('board.noCards')}</p>`}
       </div>
       <div class="add-card-form">
-        <textarea placeholder="Add a card..." data-col="${col}"></textarea>
-        <button class="btn small add-card" data-col="${col}">Add Card</button>
+        <textarea placeholder="${I18N.t('board.addCardPh')}" data-col="${col}"></textarea>
+        <button class="btn small add-card" data-col="${col}">${I18N.t('board.addCard')}</button>
       </div>
     </div>`;
   }).join('');
@@ -721,7 +721,7 @@ function wireTouchMove(board) {
     menu.id = 'touch-move-menu';
     menu.className = 'touch-move-menu';
     menu.innerHTML = `
-      <p class="touch-menu-title">Move card to…</p>
+      <p class="touch-menu-title">${I18N.t('board.moveCardTo')}</p>
       ${columns.filter(c => c.dataset.col !== current).map(c =>
         `<button class="btn small secondary" data-col="${c.dataset.col}">${c.querySelector('h3')?.textContent || c.dataset.col}</button>`
       ).join('')}
@@ -743,17 +743,17 @@ function wireTouchMove(board) {
 
 function renderCard(card) {
   const groupBadge = card.group_label
-    ? `<span class="group-badge" data-group="${Auth.esc(card.group_label)}" title="Group: ${Auth.esc(card.group_label)}">🗂 ${Auth.esc(card.group_label)}</span> ` : '';
+    ? `<span class="group-badge" data-group="${Auth.esc(card.group_label)}" title="${I18N.t('board.groupLabel')} ${Auth.esc(card.group_label)}">🗂 ${Auth.esc(card.group_label)}</span> ` : '';
   return `
     <div class="card" data-id="${card.id}" draggable="true">
       ${groupBadge ? `<div class="group-row">${groupBadge}</div>` : ''}
-      <div class="content">${Auth.esc(card.content)} <span class="sentiment-badge" title="Feedback tone: ${sentimentOf(card.content)}">${SENTIMENT_EMOJI[sentimentOf(card.content)]}</span></div>
+      <div class="content">${Auth.esc(card.content)} <span class="sentiment-badge" title="${I18N.t('board.feedbackTone')} ${sentimentOf(card.content)}">${SENTIMENT_EMOJI[sentimentOf(card.content)]}</span></div>
       <div class="meta">
         <span>by ${Auth.esc(card.author)}</span>
         <span>
-          <button class="vote-btn" data-id="${card.id}" title="Vote" aria-label="Vote for this card">👍 ${card.votes}</button>
-          <button class="edit-btn" data-id="${card.id}" data-content="${Auth.esc(card.content)}" title="Edit" aria-label="Edit this card">✏️</button>
-          <button class="delete-btn" data-id="${card.id}" title="Delete" aria-label="Delete this card">🗑</button>
+          <button class="vote-btn" data-id="${card.id}" title="${I18N.t('board.vote')}" aria-label="${I18N.t('board.voteForCard')}">👍 ${card.votes}</button>
+          <button class="edit-btn" data-id="${card.id}" data-content="${Auth.esc(card.content)}" title="${I18N.t('board.edit')}" aria-label="${I18N.t('board.editCard')}">✏️</button>
+          <button class="delete-btn" data-id="${card.id}" title="${I18N.t('board.delete')}" aria-label="${I18N.t('board.deleteCard')}">🗑</button>
         </span>
       </div>
     </div>`;
@@ -779,21 +779,21 @@ function openEditCardModal(cardId, currentContent) {
   overlay.querySelector('#card-cancel').onclick = () => overlay.remove();
   overlay.querySelector('#card-save').onclick = async () => {
     const content = overlay.querySelector('#card-content').value.trim();
-    if (!content) return toast('Content is required', 'points');
+    if (!content) return toast(I18N.t('board.contentRequired'), 'points');
     await Auth.api(`/cards/${cardId}`, { method: 'PUT', body: JSON.stringify({ content }) });
     overlay.remove();
   };
 }
 
 // ---------- Commitments Kanban ----------
-const KANBAN_LABELS = { pending: '⏳ Pending', in_progress: '🔄 In Progress', done: '✅ Done' };
+const KANBAN_LABELS = () => ({ pending: I18N.t('board.kanbanPending'), in_progress: I18N.t('board.kanbanInProgress'), done: I18N.t('board.kanbanDone') });
 
 function renderKanban(commitments) {
   window.__latestCommitments = commitments; // keep click handlers working with fresh data
   const kanban = document.getElementById('kanban');
-  kanban.innerHTML = Object.keys(KANBAN_LABELS).map(status => `
+  kanban.innerHTML = Object.keys(KANBAN_LABELS()).map(status => `
     <div class="kcolumn ${status}" data-status="${status}">
-      <h3>${KANBAN_LABELS[status]}</h3>
+      <h3>${KANBAN_LABELS()[status]}</h3>
       <div class="kcards" data-status="${status}">
         ${commitments.filter(c => c.status === status).map(renderCommitment).join('')}
       </div>
@@ -872,17 +872,17 @@ function openCommitmentModal(existing = null) {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal">
-      <h3>${existing ? 'Edit Commitment' : 'New Commitment'}</h3>
+      <h3>${existing ? I18N.t('board.editCommitment') : I18N.t('board.newCommitment')}</h3>
       <div class="form-group">
-        <label>Description</label>
+        <label>${I18N.t('board.description')}</label>
         <textarea id="cm-desc">${existing ? Auth.esc(existing.description) : ''}</textarea>
       </div>
       <div class="form-group">
-        <label>Assignee</label>
+        <label>${I18N.t('board.assignee')}</label>
         <input id="cm-assignee" value="${existing ? Auth.esc(existing.assignee) : Auth.esc(currentUser)}">
       </div>
       <div class="form-group">
-        <label>Due date</label>
+        <label>${I18N.t('board.dueDate')}</label>
         <input type="date" id="cm-due" value="${existing?.due_date || ''}">
       </div>
       <div class="modal-actions">
@@ -896,7 +896,7 @@ function openCommitmentModal(existing = null) {
     const description = overlay.querySelector('#cm-desc').value.trim();
     const assignee = overlay.querySelector('#cm-assignee').value.trim();
     const due_date = overlay.querySelector('#cm-due').value;
-    if (!description || !assignee) return toast('Description and assignee are required', 'points');
+    if (!description || !assignee) return toast(I18N.t('board.descAssigneeRequired'), 'points');
     if (existing) {
       await Auth.api(`/commitments/${existing.id}`, { method: 'PUT', body: JSON.stringify({ description, assignee, due_date }) });
     } else {
@@ -975,15 +975,15 @@ function handleLiveEvent(event, payload) {
       toast(`🎉 ${payload.participant} earned ${payload.amount} points!`, 'points');
       break;
     case 'retro_closed':
-      toast('This retro has been closed ✅');
+      toast(I18N.t('board.retroClosedMsg'));
       renderRetro().catch(() => {});
       break;
     case 'retro_reopened':
-      toast('This retro has been reopened 🟢');
+      toast(I18N.t('board.retroReopenedMsg'));
       renderRetro().catch(() => {});
       break;
     case 'retro_deleted':
-      toast('This retro has been deleted by the admin', 'points');
+      toast(I18N.t('board.retroDeletedMsg'), 'points');
       setTimeout(() => { location.href = '/'; }, 2000);
       break;
   }
@@ -1019,13 +1019,13 @@ function wireRetroEvents() {
   if (closeBtn) closeBtn.onclick = async () => {
     if (confirm('Close this retro? It will move to History.')) {
       await Auth.api(`/retros/${currentRetroId}/close`, { method: 'POST' });
-      toast('Retro closed ✅');
+      toast(I18N.t('board.retroClosed'));
     }
   };
   const reopenBtn = document.getElementById('reopen-retro');
   if (reopenBtn) reopenBtn.onclick = async () => {
     await Auth.api(`/retros/${currentRetroId}/reopen`, { method: 'POST' });
-    toast('Retro reopened 🟢');
+    toast(I18N.t('board.retroReopened'));
   };
   const deleteBtn = document.getElementById('delete-retro');
   if (deleteBtn) deleteBtn.onclick = async () => {
@@ -1039,7 +1039,7 @@ function wireRetroEvents() {
     if (!confirm('Duplicate this retro with the same configuration (fresh board)?')) return;
     try {
       const result = await Auth.api(`/retros/${currentRetroId}/duplicate`, { method: 'POST' });
-      toast('Retro duplicated ✅ Opening the copy…');
+      toast(I18N.t('board.retroDuplicated'));
       setTimeout(() => { location.href = `/retro.html?id=${result.id}`; }, 800);
     } catch (err) {
       toast(err.message, 'points');
@@ -1053,7 +1053,7 @@ function wireRetroEvents() {
       await Auth.api(`/retros/${currentRetroId}/save-template`, {
         method: 'POST', body: JSON.stringify({ name: name.trim() }),
       });
-      toast('Template saved! You will find it when creating a retro 💾');
+      toast(I18N.t('board.tplSaved'));
     } catch (err) {
       toast(err.message, 'points');
     }
@@ -1061,8 +1061,8 @@ function wireRetroEvents() {
   const copyInvite = document.getElementById('copy-invite');
   if (copyInvite) copyInvite.onclick = () => {
     navigator.clipboard.writeText(document.getElementById('invite-link').textContent)
-      .then(() => toast('Invitation link copied! Share it with your team ✅'))
-      .catch(() => toast('Could not copy', 'points'));
+      .then(() => toast(I18N.t('board.inviteCopied')))
+      .catch(() => toast(I18N.t('board.copyFailedShort'), 'points'));
   };
   document.getElementById('add-commitment').onclick = () => openCommitmentModal();
   document.getElementById('export-pdf').onclick = () => openPrintableActa(currentRetroId);
@@ -1098,7 +1098,7 @@ async function openPrintableActa(retroId) {
     headers['X-Participant-Token'] = participantToken;
   }
   const res = await fetch(`/api/retros/${retroId}/acta`, { headers });
-  if (!res.ok) { toast('Could not load the acta', 'points'); return; }
+  if (!res.ok) { toast(I18N.t('board.actaLoadFailed'), 'points'); return; }
   const md = await res.text();
 
   // Minimal markdown → HTML (headings, bold, italics, list items)
@@ -1113,7 +1113,7 @@ async function openPrintableActa(retroId) {
     .replace(/_(.+?)_/g, '<em>$1</em>');
 
   const win = window.open('', '_blank');
-  if (!win) { toast('Pop-up blocked — allow pop-ups to export PDF', 'points'); return; }
+  if (!win) { toast(I18N.t('board.popupBlocked'), 'points'); return; }
   win.document.write(`<!DOCTYPE html>
 <html>
 <head>
@@ -1150,7 +1150,7 @@ async function showAiSummary() {
     if (!res.ok) throw new Error();
     md = await res.text();
   } catch {
-    return toast('Could not generate the summary', 'points');
+    return toast(I18N.t('board.summaryFailed'), 'points');
   }
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -1167,8 +1167,8 @@ async function showAiSummary() {
   overlay.querySelector('#summary-close').onclick = () => overlay.remove();
   overlay.querySelector('#summary-copy').onclick = () => {
     navigator.clipboard.writeText(md)
-      .then(() => toast('Summary copied! Paste it in Slack or email ✅'))
-      .catch(() => toast('Could not copy', 'points'));
+      .then(() => toast(I18N.t('board.summaryCopied')))
+      .catch(() => toast(I18N.t('board.copyFailedShort'), 'points'));
   };
 }
 
@@ -1186,8 +1186,8 @@ async function autoGroupCards() {
 
 // ---------- Facilitator timer (client-side, phases with presets) ----------
 const TIMER_PHASES = [
-  { name: 'Gather cards', minutes: 8 },
-  { name: 'Discuss & group', minutes: 10 },
+  { name: null, i18n: 'timer.gatherCards', minutes: 8 },
+  { name: null, i18n: 'timer.discussGroup', minutes: 10 },
   { name: 'Vote', minutes: 3 },
   { name: 'Actions', minutes: 10 },
 ];
@@ -1201,7 +1201,7 @@ function openFacilitatorTimer() {
       <strong>⏱ Facilitator Timer</strong>
       <button class="timer-close" id="timer-close">✕</button>
     </div>
-    <div class="timer-phase" id="timer-phase">Gather cards</div>
+    <div class="timer-phase" id="timer-phase">${I18N.t('timer.gatherCards')}</div>
     <div class="timer-display" id="timer-display">08:00</div>
     <div class="timer-controls">
       <button class="btn small" id="timer-start">▶ Start</button>
@@ -1216,21 +1216,21 @@ function openFacilitatorTimer() {
   let timerId = null;
   const renderPhases = () => {
     document.getElementById('timer-phases').innerHTML = TIMER_PHASES.map((p, i) =>
-      `<span class="timer-phase-item ${i === phaseIndex ? 'active' : ''}">${i + 1}. ${p.name} (${p.minutes}m)</span>`).join('');
-    document.getElementById('timer-phase').textContent = TIMER_PHASES[phaseIndex].name;
+      `<span class="timer-phase-item ${i === phaseIndex ? 'active' : ''}">${i + 1}. ${I18N.t(p.i18n)} (${p.minutes}m)</span>`).join('');
+    document.getElementById('timer-phase').textContent = I18N.t(TIMER_PHASES[phaseIndex].i18n);
   };
   const renderTime = () => {
     const m = String(Math.floor(remaining / 60)).padStart(2, '0');
     const s = String(remaining % 60).padStart(2, '0');
     document.getElementById('timer-display').textContent = `${m}:${s}`;
-    document.title = `${m}:${s} — ${TIMER_PHASES[phaseIndex].name} · Retro Board`;
+    document.title = `${m}:${s} — ${I18N.t(TIMER_PHASES[phaseIndex].i18n)} · Retro Board`;
   };
   const stop = () => { if (timerId) { clearInterval(timerId); timerId = null; } };
   const tick = () => {
     remaining -= 1;
     if (remaining <= 0) {
       stop();
-      toast(`⏰ Time's up for "${TIMER_PHASES[phaseIndex].name}"!`);
+      toast(`⏰ Time's up for "${I18N.t(TIMER_PHASES[phaseIndex].i18n)}"!`);
       document.title = '⏰ Time\'s up! · Retro Board';
       return;
     }
@@ -1256,7 +1256,7 @@ function openWebhookModal() {
   overlay.innerHTML = `
     <div class="modal">
       <h3>🔔 Slack / Teams Notifications</h3>
-      <p class="muted" style="font-size:0.85rem">Paste an incoming webhook URL to get notified when commitments are created or completed. Works with Slack (<code>hooks.slack.com</code>) and Teams workflows.</p>
+      <p class="muted" style="font-size:0.85rem">${I18N.t('board.webhookHelp')}</p>
       <div class="form-group">
         <label>Webhook URL</label>
         <input id="webhook-url" placeholder="https://hooks.slack.com/services/..." value="${Auth.esc(retroWebhookUrl || '')}">
@@ -1273,12 +1273,12 @@ function openWebhookModal() {
   overlay.querySelector('#webhook-test').onclick = async () => {
     const webhook_url = overlay.querySelector('#webhook-url').value.trim();
     if (webhook_url !== (retroWebhookUrl || '')) {
-      toast('Save the URL first, then send the test', 'points');
+      toast(I18N.t('board.saveUrlFirst'), 'points');
       return;
     }
     try {
       await Auth.api(`/retros/${currentRetroId}/webhook-test`, { method: 'POST' });
-      toast('Test sent! Check your Slack/Teams channel 🔔');
+      toast(I18N.t('board.webhookTestSent'));
     } catch (err) {
       toast(err.message, 'points');
     }
@@ -1286,7 +1286,7 @@ function openWebhookModal() {
   overlay.querySelector('#webhook-remove').onclick = async () => {
     await Auth.api(`/retros/${currentRetroId}/webhook`, { method: 'PUT', body: JSON.stringify({ webhook_url: null }) });
     retroWebhookUrl = null;
-    toast('Webhook removed');
+    toast(I18N.t('board.webhookRemoved'));
     overlay.remove();
   };
   overlay.querySelector('#webhook-save').onclick = async () => {
@@ -1294,7 +1294,7 @@ function openWebhookModal() {
     try {
       await Auth.api(`/retros/${currentRetroId}/webhook`, { method: 'PUT', body: JSON.stringify({ webhook_url }) });
       retroWebhookUrl = webhook_url;
-      toast('Webhook saved! You will get notifications 🔔');
+      toast(I18N.t('board.webhookSaved'));
       overlay.remove();
     } catch (err) {
       toast(err.message, 'points');

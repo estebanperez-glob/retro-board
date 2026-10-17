@@ -38,8 +38,8 @@ const Auth = {
     const authArea = this.username
       ? `<a href="/account.html">My Account</a><span class="nav-user">👤 ${Auth.esc(this.username)}</span><a href="#" id="nav-logout">Logout</a>`
       : isGuest
-        ? `<span class="nav-user">👻 Guest</span><a href="#" id="nav-exit-guest">Exit guest mode</a><a href="#" id="nav-login">Login / Register</a>`
-        : `<a href="#" id="nav-login">Login / Register</a>`;
+        ? `<span class="nav-user">${I18N.t('auth.guest')}</span><a href="#" id="nav-exit-guest">${I18N.t('auth.exitGuest')}</a><a href="#" id="nav-login">${I18N.t('auth.loginRegister')}</a>`
+        : `<a href="#" id="nav-login">${I18N.t('auth.loginRegister')}</a>`;
     const page = location.pathname;
     const active = p => (p === '/' ? location.pathname === '/' || location.pathname === '/index.html' : location.pathname === p) ? ' class="active"' : '';
     nav.innerHTML = `
@@ -66,10 +66,8 @@ const Auth = {
     if (langBtn) langBtn.onclick = () => {
       const next = (localStorage.getItem('retroLang') || 'en') === 'es' ? 'en' : 'es';
       localStorage.setItem('retroLang', next);
-      langBtn.textContent = next === 'es' ? 'EN' : 'ES';
-      // Re-render nav with new language and translate the rest of the page
-      this.renderNav();
-      if (window.I18N) window.I18N.apply();
+      // Reload so all dynamically rendered content re-renders in the new language
+      location.reload();
     };
     // Translate nav links according to the selected language
     if (window.I18N) {
@@ -134,7 +132,7 @@ const Auth = {
       <div class="modal" role="dialog" aria-modal="true">
         <button class="modal-close" aria-label="Close" title="Close">&times;</button>
         <h3>${isLogin ? 'Log In' : 'Create Account'}</h3>
-        <p class="muted" style="font-size:0.85rem">Admins log in to create and manage their own retro spaces. Participants don't need an account.</p>
+        <p class="muted" style="font-size:0.85rem">${I18N.t('auth.adminsHint')}</p>
         <div class="form-group">
           <label>Username</label>
           <input id="auth-user" autocomplete="username">
@@ -145,18 +143,18 @@ const Auth = {
         </div>
         ${isLogin ? '' : `
         <div class="form-group">
-          <label>Security question (to reset your password if you forget it)</label>
+          <label>${I18N.t('auth.secQuestionLabel')}</label>
           <input id="auth-secq" placeholder="e.g. What is my favorite color?">
         </div>
         <div class="form-group">
-          <label>Security answer</label>
+          <label>${I18N.t('auth.secAnswerLabel')}</label>
           <input id="auth-seca" autocomplete="off">
         </div>`}
         <div class="modal-actions">
           <button class="btn secondary" id="auth-switch">${isLogin ? 'Need an account? Register' : 'Have an account? Log in'}</button>
           <button class="btn" id="auth-go">${isLogin ? 'Log In' : 'Register'}</button>
         </div>
-        ${isLogin ? '<p class="muted" style="text-align:center;margin-top:12px"><a href="#" id="auth-forgot" style="color:var(--accent)">Forgot your password?</a> · <a href="#" id="auth-guest" style="color:var(--accent)">Continue as guest</a></p>' : ''}
+        ${isLogin ? `<p class="muted" style="text-align:center;margin-top:12px"><a href="#" id="auth-forgot" style="color:var(--accent)">${I18N.t('auth.forgotPass')}</a> · <a href="#" id="auth-guest" style="color:var(--accent)">${I18N.t('auth.continueGuest')}</a></p>` : ''}
       </div>`;
     document.body.appendChild(overlay);
     const close = () => overlay.remove();
@@ -185,14 +183,14 @@ const Auth = {
     const submit = async () => {
       const username = overlay.querySelector('#auth-user').value.trim();
       const password = overlay.querySelector('#auth-pass').value;
-      if (!username || !password) return Auth.toast('Username and password are required');
+      if (!username || !password) return Auth.toast(I18N.t('auth.userPassRequired'));
       try {
         let body = { username, password };
         if (!isLogin) {
           const security_question = overlay.querySelector('#auth-secq').value.trim();
           const security_answer = overlay.querySelector('#auth-seca').value.trim();
           if (!security_question || !security_answer) {
-            return Auth.toast('Security question and answer are required (they let you recover your password)');
+            return Auth.toast(I18N.t('auth.secQARRequired'));
           }
           body = { ...body, security_question, security_answer };
         }
@@ -237,7 +235,7 @@ const Auth = {
     overlay.querySelector('#fp-user').focus();
     overlay.querySelector('#fp-next').onclick = async () => {
       const username = overlay.querySelector('#fp-user').value.trim();
-      if (!username) return Auth.toast('Please enter your username');
+      if (!username) return Auth.toast(I18N.t('auth.enterUsername'));
       try {
         const { security_question } = await this.api(`/forgot-password/${encodeURIComponent(username)}`);
         overlay.querySelector('.modal p.muted').textContent = 'Step 2 of 2 — answer your security question.';
@@ -247,7 +245,7 @@ const Auth = {
             <input id="fp-answer" autocomplete="off">
           </div>
           <div class="form-group">
-            <label>New password</label>
+            <label>${I18N.t('auth.newPassLabel')}</label>
             <input type="password" id="fp-newpass" autocomplete="new-password">
           </div>`;
         const nextBtn = overlay.querySelector('#fp-next');
@@ -255,14 +253,14 @@ const Auth = {
         nextBtn.onclick = async () => {
           const security_answer = overlay.querySelector('#fp-answer').value.trim();
           const new_password = overlay.querySelector('#fp-newpass').value;
-          if (!security_answer || !new_password) return Auth.toast('Answer and new password are required');
+          if (!security_answer || !new_password) return Auth.toast(I18N.t('auth.answerPassRequired'));
           try {
             await this.api(`/forgot-password/${encodeURIComponent(username)}`, {
               method: 'POST',
               body: JSON.stringify({ security_answer, new_password }),
             });
             close();
-            Auth.toast('Password updated! You can now log in with your new password.');
+            Auth.toast(I18N.t('auth.passUpdated'));
           } catch (err) {
             Auth.toast(err.message);
           }

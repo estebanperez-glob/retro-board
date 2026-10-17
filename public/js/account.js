@@ -102,7 +102,7 @@ async function renderAccount() {
       a.download = `retro-board-backup-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      Auth.toast('Backup downloaded 💾');
+      Auth.toast(I18N.t('account.backupDone'));
     }).catch(err => Auth.toast(err.message));
   };
 
@@ -110,13 +110,13 @@ async function renderAccount() {
     const current_password = document.getElementById('acc-curpass').value;
     const new_password = document.getElementById('acc-newpass').value;
     const repeat = document.getElementById('acc-newpass2').value;
-    if (!current_password || !new_password) return Auth.toast('Please fill in all fields');
-    if (new_password !== repeat) return Auth.toast('New passwords do not match');
+    if (!current_password || !new_password) return Auth.toast(I18N.t('account.fillAll'));
+    if (new_password !== repeat) return Auth.toast(I18N.t('account.passMismatch'));
     try {
       await Auth.api('/account/password', {
         method: 'PUT', body: JSON.stringify({ current_password, new_password }),
       });
-      Auth.toast('Password changed successfully ✅');
+      Auth.toast(I18N.t('account.passChanged'));
       document.getElementById('acc-curpass').value = '';
       document.getElementById('acc-newpass').value = '';
       document.getElementById('acc-newpass2').value = '';
@@ -130,14 +130,14 @@ async function renderAccount() {
     const security_question = document.getElementById('acc-secq').value.trim();
     const security_answer = document.getElementById('acc-seca').value.trim();
     if (!current_password || !security_question || !security_answer) {
-      return Auth.toast('Please fill in all fields');
+      return Auth.toast(I18N.t('account.fillAll'));
     }
     try {
       await Auth.api('/account/security-question', {
         method: 'PUT',
         body: JSON.stringify({ current_password, security_question, security_answer }),
       });
-      Auth.toast('Security question updated ✅');
+      Auth.toast(I18N.t('account.secQUpdated'));
       renderAccount();
     } catch (err) {
       Auth.toast(err.message);
@@ -147,12 +147,12 @@ async function renderAccount() {
   document.getElementById('acc-saveemail').onclick = async () => {
     const email = document.getElementById('acc-email').value.trim();
     const notify_overdue = document.getElementById('acc-notify').checked;
-    if (notify_overdue && !email) return Auth.toast('Enter an email address to enable notifications');
+    if (notify_overdue && !email) return Auth.toast(I18N.t('account.emailNeeded'));
     try {
       await Auth.api('/account/email', {
         method: 'PUT', body: JSON.stringify({ email, notify_overdue }),
       });
-      Auth.toast('Email settings saved ✅');
+      Auth.toast(I18N.t('account.emailSaved'));
     } catch (err) {
       Auth.toast(err.message);
     }

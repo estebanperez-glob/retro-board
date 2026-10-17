@@ -99,7 +99,7 @@ document.getElementById('retro-list')?.addEventListener('click', async (e) => {
   try {
     await Auth.api(`/retros/${btn.dataset.id}`, { method: 'DELETE' });
     btn.closest('.retro-card').remove();
-    Auth.toast('Retro deleted');
+    Auth.toast(I18N.t('history.retroDeleted'));
   } catch (err) {
     Auth.toast(`Could not delete: ${err.message}`);
   }
