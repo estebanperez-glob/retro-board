@@ -19,6 +19,10 @@ function register(app) {
     const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
     if (!(await requireRetroAccess(req, res, retro))) return;
     if (!description || !assignee) return res.status(400).json({ error: 'Description and assignee are required' });
+    if (String(description).trim().length > 300) return res.status(400).json({ error: 'Description must be at most 300 characters' });
+    if (String(assignee).trim().length > 60) return res.status(400).json({ error: 'Assignee must be at most 60 characters' });
+    if (due_date && !/^\d{4}-\d{2}-\d{2}$/.test(String(due_date)))
+      return res.status(400).json({ error: 'due_date must be in YYYY-MM-DD format' });
     const info = await db.run(
       'INSERT INTO commitments (retro_id, description, assignee, due_date) VALUES ($1, $2, $3, $4) RETURNING id',
       [req.params.id, description.trim(), assignee, due_date || null]);
@@ -30,6 +34,8 @@ function register(app) {
 
   app.put('/api/commitments/:id', ah(async (req, res) => {
     const { description, assignee, due_date, status } = req.body;
+    if (due_date && !/^\d{4}-\d{2}-\d{2}$/.test(String(due_date)))
+      return res.status(400).json({ error: 'due_date must be in YYYY-MM-DD format' });
     const commitment = await db.get('SELECT * FROM commitments WHERE id = $1', [req.params.id]);
     if (!commitment) return res.status(404).json({ error: 'Commitment not found' });
     const retro = await db.get('SELECT * FROM retros WHERE id = $1', [commitment.retro_id]);
@@ -61,8 +67,8 @@ function register(app) {
         const streakRow = await db.get(`
           SELECT COUNT(*) AS n FROM points
           WHERE participant_name = $1 AND reason = 'On-time streak bonus'
-            AND created_at >= to_char(now() - interval '14 days' AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')
-            AND created_at < to_char(now() - interval '3 days' AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')`,
+            AND created_at >= to_char((now() - interval '14 days') AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')
+            AND created_at < to_char((now() - interval '3 days') AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')`,
           [updated.assignee]);
         if (Number(streakRow.count) > 0) {
           await db.run(

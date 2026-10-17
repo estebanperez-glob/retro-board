@@ -30,7 +30,7 @@ async function loadMyCommitments() {
     <div class="dash-item ${cm.is_overdue ? 'overdue' : ''} ${cm.status === 'done' ? 'done' : ''}">
       <div class="dash-desc">${cm.is_overdue ? '⚠️ ' : ''}${cm.status === 'done' ? '✅ ' : ''}${Auth.esc(cm.description)}</div>
       <div class="dash-meta">
-        ${cm.due_date ? `<span class="due">📅 ${cm.due_date}</span>` : ''}
+        ${cm.due_date ? `<span class="due">📅 ${Auth.esc(cm.due_date)}</span>` : ''}
         <span class="badge status-${cm.retro_status}">${cm.retro_status === 'closed' ? '✅ Retro closed' : '🟢 Retro open'}</span>
         <a href="/retro.html?id=${cm.retro_id}" class="dash-retro">${Auth.esc(cm.retro_title)}</a>
       </div>

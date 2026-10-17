@@ -330,7 +330,7 @@ async function renderCommitmentsDashboard() {
       <div class="dash-desc">${cm.is_overdue ? '⚠️ ' : ''}${Auth.esc(cm.description)}</div>
       <div class="dash-meta">
         <span class="assignee">👤 ${Auth.esc(cm.assignee)}</span>
-        ${cm.due_date ? `<span class="due">📅 ${cm.due_date}</span>` : ''}
+        ${cm.due_date ? `<span class="due">📅 ${Auth.esc(cm.due_date)}</span>` : ''}
         <a href="/retro.html?id=${cm.retro_id}" class="dash-retro">${Auth.esc(cm.retro_title)}</a>
       </div>
     </div>`;
@@ -856,7 +856,7 @@ function renderCommitment(cm) {
       <div class="desc">${Auth.esc(cm.description)}</div>
       <div class="meta">
         <span class="assignee">👤 ${Auth.esc(cm.assignee)}</span>
-        <span class="due">${cm.due_date ? '📅 ' + cm.due_date : ''}</span>
+        <span class="due">${cm.due_date ? '📅 ' + Auth.esc(cm.due_date) : ''}</span>
       </div>
       <div class="meta" style="margin-top:6px">
         <span>
