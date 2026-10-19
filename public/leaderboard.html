@@ -10,7 +10,7 @@
   <script>if(localStorage.getItem("retroTheme")==="dark")document.documentElement.classList.add("dark-init");</script>
 </head>
 <body class="home-bg">
-  <a class="skip-link" href="#app">Skip to content</a>
+  <a class="skip-link" href="#app" data-i18n="misc.skipToContent">Skip to content</a>
   <header>
     <h1>🚀 Retro Board</h1>
     <nav></nav>
@@ -18,7 +18,7 @@
   <main id="app">
     <h2 data-i18n="leaderboard.title">🏆 Leaderboard</h2>
     <p class="muted" data-i18n="leaderboard.subtitle">Earn 10 points for every commitment you complete!</p>
-    <p style="text-align:right"><a class="btn secondary" href="javascript:history.back()">← Back</a></p>
+    <p style="text-align:right"><a class="btn secondary" href="javascript:history.back()" data-i18n="nav.back">← Back</a></p>
     <table id="leaderboard-table">
       <thead>
         <tr><th data-i18n="leaderboard.rank">Rank</th><th data-i18n="leaderboard.participant">Participant</th><th data-i18n="leaderboard.points">Points</th><th data-i18n="leaderboard.completedCommitments">Completed Commitments</th></tr>

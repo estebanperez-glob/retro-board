@@ -875,13 +875,3 @@ header nav a:hover { color: var(--accent); }
 /* Evolution chart container: fixed height so it doesn't jump on re-render */
 .evolution-chart { min-height: 320px; }
 .evolution-chart canvas { max-height: 380px; }
-
-/* ---------- Template preview chips (home) ---------- */
-.template-preview {
-  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
-  margin-top: 8px;
-}
-.template-chip {
-  background: var(--surface-2); border: 1px solid var(--accent); border-radius: 999px;
-  padding: 3px 12px; font-size: 0.8rem; color: var(--text);
-}

@@ -10,7 +10,7 @@
   <script>if(localStorage.getItem("retroTheme")==="dark")document.documentElement.classList.add("dark-init");</script>
 </head>
 <body>
-  <a class="skip-link" href="#app">Skip to content</a>
+  <a class="skip-link" href="#app" data-i18n="misc.skipToContent">Skip to content</a>
   <header>
     <h1>🚀 Retro Board</h1>
     <nav></nav>
@@ -30,7 +30,7 @@
         <li><span data-i18n="guide.quickstart.s3"><strong>Run the retro</strong> — everyone adds cards, votes with dots, and discusses in real time. Use the timer to timebox each column.</span></li>
         <li><span data-i18n="guide.quickstart.s4"><strong>Close the loop</strong> — turn the top-voted cards into commitments with an assignee and due date, then track them in the kanban.</span></li>
       </ol>
-      <div style="margin-top:16px"><a class="btn" href="/">🎨 Start your first retro</a></div>
+      <div style="margin-top:16px"><a class="btn" href="/" data-i18n="guide.cta.start">🎨 Start your first retro</a></div>
     </section>
 
     <section class="home-hero" style="margin-top:24px">
@@ -115,12 +115,12 @@
     </section>
 
     <section class="home-hero" style="margin-top:24px">
-      <a class="btn" href="/">🎨 Start your first retro</a>
-      <a class="btn secondary" href="/templates.html">📖 Browse templates</a>
+      <a class="btn" href="/" data-i18n="guide.cta.start">🎨 Start your first retro</a>
+      <a class="btn secondary" href="/templates.html" data-i18n="guide.cta.templates">📖 Browse templates</a>
     </section>
 
     <footer class="site-footer">
-      <p><a href="/">Retro Board</a> — fun, actionable retrospectives for agile teams.</p>
+      <p><a href="/">Retro Board</a> — <span data-i18n="misc.footer">fun, actionable retrospectives for agile teams.</span></p>
     </footer>
   </div>
   <script src="/js/i18n.js"></script>

@@ -29,71 +29,89 @@ function toast(message, cls = '') {
 
 // ---------- Retro templates ----------
 let savedTemplates = []; // user's saved custom templates (loaded on home)
+// Built-in templates. Names and column labels resolve via I18N.t() at call time
+// (the language toggle reloads the page, so evaluating on access is enough).
 const TEMPLATES = {
   classic: {
-    name: 'Classic (Went Well / Didn\'t Go Well / Actions)',
-    columns: {
-      went_well: '😄 What Went Well',
-      didnt_go_well: "😕 What Didn't Go Well",
-      action: '💡 Action Items',
+    get name() { return I18N.t('tpl.classic.name'); },
+    get columns() {
+      return {
+        went_well: I18N.t('col.wentWell'),
+        didnt_go_well: I18N.t('col.didntGoWell'),
+        action: I18N.t('col.action'),
+      };
     },
   },
   ssc: {
-    name: 'Start / Stop / Continue',
-    columns: {
-      start_doing: '🚀 Start Doing',
-      stop_doing: '🛑 Stop Doing',
-      continue_doing: '🔁 Continue Doing',
+    get name() { return I18N.t('tpl.ssc.title'); },
+    get columns() {
+      return {
+        start_doing: I18N.t('col.startDoing'),
+        stop_doing: I18N.t('col.stopDoing'),
+        continue_doing: I18N.t('col.continueDoing'),
+      };
     },
   },
   msg: {
-    name: 'Mad / Sad / Glad',
-    columns: { mad: '😠 Mad', sad: '😢 Sad', glad: '😊 Glad' },
+    get name() { return I18N.t('tpl.msg.title'); },
+    get columns() {
+      return { mad: I18N.t('col.mad'), sad: I18N.t('col.sad'), glad: I18N.t('col.glad') };
+    },
   },
   '4ls': {
-    name: '4Ls (Liked / Learned / Lacked / Longed for)',
-    columns: {
-      liked: '👍 Liked',
-      learned: '🧠 Learned',
-      lacked: '🕳 Lacked',
-      longed_for: '✨ Longed For',
+    get name() { return I18N.t('tpl.4ls.title'); },
+    get columns() {
+      return {
+        liked: I18N.t('col.liked'),
+        learned: I18N.t('col.learned'),
+        lacked: I18N.t('col.lacked'),
+        longed_for: I18N.t('col.longedFor'),
+      };
     },
   },
   sailboat: {
-    name: 'Sailboat (Wind / Anchors / Risks / Island)',
-    columns: {
-      wind: '🌬 Wind (Propellers)',
-      anchors: '⚓ Anchors (Dragging Us)',
-      risks: '⚠️ Risks Ahead',
-      island: '🏝 Island (Goals)',
+    get name() { return I18N.t('tpl.sailboat.title'); },
+    get columns() {
+      return {
+        wind: I18N.t('col.wind'),
+        anchors: I18N.t('col.anchors'),
+        risks: I18N.t('col.risks'),
+        island: I18N.t('col.island'),
+      };
     },
   },
   starfish: {
-    name: 'Starfish (More / Less / Start / Stop / Keep)',
-    columns: {
-      more: '➕ Keep Doing More',
-      less: '📉 Do Less',
-      start: '🚀 Start Doing',
-      stop: '🛑 Stop Doing',
-      keep: '✅ Keep Doing',
+    get name() { return I18N.t('tpl.starfish.title'); },
+    get columns() {
+      return {
+        more: I18N.t('col.more'),
+        less: I18N.t('col.less'),
+        start: I18N.t('col.start'),
+        stop: I18N.t('col.stop'),
+        keep: I18N.t('col.keep'),
+      };
     },
   },
   daki: {
-    name: 'DAKI (Drop / Add / Keep / Improve)',
-    columns: {
-      drop: '🗑 Drop',
-      add: '➕ Add',
-      keep: '✅ Keep',
-      improve: '🔧 Improve',
+    get name() { return I18N.t('tpl.daki.title'); },
+    get columns() {
+      return {
+        drop: I18N.t('col.drop'),
+        add: I18N.t('col.add'),
+        keep: I18N.t('col.keep'),
+        improve: I18N.t('col.improve'),
+      };
     },
   },
   wellbeing: {
-    name: 'Wellbeing Check-in',
-    columns: {
-      energized: '⚡ Energized By',
-      drained: '🪫 Drained By',
-      support_needed: '🤝 Support Needed',
-      suggestions: '💭 Ideas to Improve',
+    get name() { return I18N.t('tpl.wellbeing.title'); },
+    get columns() {
+      return {
+        energized: I18N.t('col.energized'),
+        drained: I18N.t('col.drained'),
+        support_needed: I18N.t('col.supportNeeded'),
+        suggestions: I18N.t('col.suggestions'),
+      };
     },
   },
 };
@@ -184,36 +202,7 @@ async function renderHome() {
   };
   templateSelect.addEventListener('change', () => {
     customEditor.classList.toggle('hidden', templateSelect.value !== 'custom');
-    renderTemplatePreview();
   });
-
-  // --- Template preview: chips showing the columns of the selected template ---
-  function renderTemplatePreview() {
-    let previewEl = document.getElementById('template-preview');
-    if (!previewEl) {
-      previewEl = document.createElement('div');
-      previewEl.id = 'template-preview';
-      previewEl.className = 'template-preview';
-      templateSelect.closest('.join-form').after(previewEl);
-    }
-    const val = templateSelect.value;
-    let columns = null;
-    if (TEMPLATES[val]) {
-      previewEl.innerHTML = Object.values(TEMPLATES[val].columns)
-        .map(l => `<span class="template-chip">${l}</span>`).join('');
-    } else if (val.startsWith('saved:')) {
-      const tpl = savedTemplates.find(t => String(t.id) === val.slice(6));
-      if (tpl) {
-        try {
-          previewEl.innerHTML = JSON.parse(tpl.columns_json)
-            .map(c => `<span class="template-chip">${Auth.esc(c.label)}</span>`).join('');
-        } catch { previewEl.innerHTML = ''; }
-      } else previewEl.innerHTML = '';
-    } else {
-      previewEl.innerHTML = `<span class="muted" style="font-size:0.85rem">${I18N.t('home.defineColsBelow')}</span>`;
-    }
-  }
-  renderTemplatePreview();
 
   // --- Saved templates: load into the select (logged-in users) ---
   if (Auth.token) {
