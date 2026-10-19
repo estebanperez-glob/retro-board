@@ -3,9 +3,16 @@
   "version": "1.0.0",
   "description": "Fun, functional retrospective board with commitment tracking, assignments and gamification.",
   "main": "src/server.js",
+  "private": true,
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/estebanperez-glob/retro-board.git"
+  },
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "test": "node test/smoke.js"
   },
   "dependencies": {
     "debug": "^4.4.3",

@@ -1,13 +1,3 @@
----
-title: Retro Board
-emoji: 🚀
-colorFrom: indigo
-colorTo: purple
-sdk: docker
-app_port: 7860
-pinned: false
----
-
 # 🚀 Retro Board
 
 A fun, functional retrospective board for agile teams — with live collaboration, commitment tracking, assignments, gamification and exportable minutes (actas).

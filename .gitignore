@@ -1,1 +1,14 @@
+# Secrets & environment
+.env
+.env.*
+
+# Dependencies
+node_modules/
+
+# Coda agent workspace
 .coda/
+
+# Logs & OS noise
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: retro
+          POSTGRES_PASSWORD: retro
+          POSTGRES_DB: retro_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://retro:retro@localhost:5432/retro_test?sslmode=disable
+      PORT: 3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax check (all JS)
+        run: |
+          for f in $(git ls-files '*.js'); do node --check "$f"; done
+
+      - name: Start server
+        run: |
+          node src/server.js &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/ > /dev/null; then echo "server up"; exit 0; fi
+            sleep 1
+          done
+          echo "server did not start"; exit 1
+
+      - name: Run smoke test
+        run: npm test
+        env:
+          BASE_URL: http://localhost:3000
+          CLEANUP_USER: 'true'
