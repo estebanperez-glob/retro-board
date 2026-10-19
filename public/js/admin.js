@@ -4,8 +4,8 @@ async function loadStats() {
   if (!Auth.token) {
     el.innerHTML = `
       <div class="auth-required">
-        <p>🔒 <strong>Log in required.</strong></p>
-        <button class="btn" onclick="Auth.openAuthModal('login')">Log In</button>
+        <p>🔒 <strong>${I18N.t('admin.loginRequired')}</strong></p>
+        <button class="btn" onclick="Auth.openAuthModal('login')">${I18N.t('admin.loginBtn')}</button>
       </div>`;
     return;
   }
@@ -29,41 +29,41 @@ async function loadStats() {
           <div class="bar" style="height:${Math.max(4, Math.round((a.views / maxViews) * 100))}%"></div>
           <span class="bar-label">${a.day.slice(5)}</span>
         </div>`).join('')
-    : '<p class="muted">No page views recorded yet.</p>';
+    : `<p class="muted">${I18N.t('admin.noViews')}</p>`;
 
   el.innerHTML = `
     <div class="stats-grid">
-      <div class="stat-card"><span class="stat-value">${t.registered_users}</span><span class="stat-label">Registered users</span></div>
-      <div class="stat-card"><span class="stat-value">${t.unique_participants}</span><span class="stat-label">Unique participants</span></div>
-      <div class="stat-card"><span class="stat-value">${t.total_retros}</span><span class="stat-label">Retros created</span></div>
-      <div class="stat-card"><span class="stat-value">${t.open_retros}</span><span class="stat-label">Open retros</span></div>
-      <div class="stat-card"><span class="stat-value">${t.total_cards}</span><span class="stat-label">Cards</span></div>
-      <div class="stat-card"><span class="stat-value">${t.total_commitments}</span><span class="stat-label">Commitments</span></div>
-      <div class="stat-card"><span class="stat-value">${completionRate}%</span><span class="stat-label">Commitment completion</span></div>
-      <div class="stat-card"><span class="stat-value">${t.total_page_views}</span><span class="stat-label">Page views</span></div>
+      <div class="stat-card"><span class="stat-value">${t.registered_users}</span><span class="stat-label">${I18N.t('admin.registeredUsers')}</span></div>
+      <div class="stat-card"><span class="stat-value">${t.unique_participants}</span><span class="stat-label">${I18N.t('admin.uniqueParticipants')}</span></div>
+      <div class="stat-card"><span class="stat-value">${t.total_retros}</span><span class="stat-label">${I18N.t('admin.retrosCreated')}</span></div>
+      <div class="stat-card"><span class="stat-value">${t.open_retros}</span><span class="stat-label">${I18N.t('admin.openRetros')}</span></div>
+      <div class="stat-card"><span class="stat-value">${t.total_cards}</span><span class="stat-label">${I18N.t('admin.cards')}</span></div>
+      <div class="stat-card"><span class="stat-value">${t.total_commitments}</span><span class="stat-label">${I18N.t('admin.commitments')}</span></div>
+      <div class="stat-card"><span class="stat-value">${completionRate}%</span><span class="stat-label">${I18N.t('admin.completionRate')}</span></div>
+      <div class="stat-card"><span class="stat-value">${t.total_page_views}</span><span class="stat-label">${I18N.t('admin.pageViews')}</span></div>
     </div>
 
-    <h3>Page views — last 30 days</h3>
+    <h3>${I18N.t('admin.pageViews30')}</h3>
     <div class="activity-chart">${activityBars}</div>
 
     <div class="stats-columns">
       <div>
-        <h3>Top pages</h3>
+        <h3>${I18N.t('admin.topPages')}</h3>
         ${data.topPages.length ? data.topPages.map(p => `
           <div class="dash-item"><div class="dash-desc">${Auth.esc(p.page)}</div>
-          <div class="dash-meta"><span class="badge">${p.views} views</span></div></div>`).join('')
-        : '<p class="muted">No data yet.</p>'}
+          <div class="dash-meta"><span class="badge">${p.views} ${I18N.t('admin.views')}</span></div></div>`).join('')
+        : `<p class="muted">${I18N.t('admin.noData')}</p>`}
       </div>
       <div>
-        <h3>Most engaged users</h3>
+        <h3>${I18N.t('admin.topUsers')}</h3>
         ${data.topUsers.length ? data.topUsers.map(u => `
           <div class="dash-item"><div class="dash-desc">👤 ${Auth.esc(u.name)}</div>
           <div class="dash-meta">
-            <span class="badge">${u.retros_participated} retros</span>
-            <span class="badge">${u.commitments_done} ✅ done</span>
-            <span class="badge">${u.points} pts</span>
+            <span class="badge">${u.retros_participated} ${I18N.t('admin.retros')}</span>
+            <span class="badge">${u.commitments_done} ${I18N.t('admin.done')}</span>
+            <span class="badge">${u.points} ${I18N.t('admin.pts')}</span>
           </div></div>`).join('')
-        : '<p class="muted">No participants yet.</p>'}
+        : `<p class="muted">${I18N.t('admin.noParticipants')}</p>`}
       </div>
     </div>`;
 }
@@ -71,7 +71,7 @@ async function loadStats() {
 // ---------- Users tab ----------
 async function loadUsers() {
   const el = document.getElementById('users-content');
-  el.innerHTML = '<p class="muted">Loading…</p>';
+  el.innerHTML = `<p class="muted">${I18N.t('admin.loading')}</p>`;
   let users;
   try {
     users = await Auth.api('/admin/users');
@@ -82,7 +82,7 @@ async function loadUsers() {
   el.innerHTML = `
     <table class="users-table">
       <thead><tr>
-        <th>Username</th><th>Email</th><th>Master</th><th>Retros</th><th>Registered</th><th>Actions</th>
+        <th>${I18N.t('admin.username')}</th><th>${I18N.t('admin.email')}</th><th>${I18N.t('admin.master')}</th><th>${I18N.t('admin.retros')}</th><th>${I18N.t('admin.registered')}</th><th>${I18N.t('admin.actions')}</th>
       </thead>
       <tbody>
         ${users.map(u => `
@@ -93,8 +93,8 @@ async function loadUsers() {
             <td>${u.retros_created}</td>
             <td>${(u.created_at || '').slice(0, 10)}</td>
             <td class="users-actions">
-              <button class="btn btn-small" onclick="editUser(${u.id}, '${Auth.esc(u.username)}', '${Auth.esc(u.email || '')}', ${u.is_master})">Edit</button>
-              <button class="btn btn-small btn-danger" onclick="deleteUser(${u.id}, '${Auth.esc(u.username)}')">Delete</button>
+              <button class="btn btn-small" onclick="editUser(${u.id}, '${Auth.esc(u.username)}', '${Auth.esc(u.email || '')}', ${u.is_master})">${I18N.t('admin.edit')}</button>
+              <button class="btn btn-small btn-danger" onclick="deleteUser(${u.id}, '${Auth.esc(u.username)}')">${I18N.t('admin.delete')}</button>
             </td>
           </tr>`).join('')}
       </tbody>
@@ -102,10 +102,10 @@ async function loadUsers() {
 }
 
 function editUser(id, username, email) {
-  const newPassword = prompt(`New password for ${username} (leave empty to keep current):`);
+  const newPassword = prompt(I18N.t('admin.newPassPrompt').replace('{name}', username));
   if (newPassword === null) return;
-  if (newPassword && newPassword.length < 8) return alert('Password must be at least 8 characters');
-  const newEmail = prompt(`Email for ${username}:`, email || '');
+  if (newPassword && newPassword.length < 8) return alert(I18N.t('admin.passMinLength'));
+  const newEmail = prompt(I18N.t('admin.emailPrompt').replace('{name}', username), email || '');
   if (newEmail === null) return;
   const body = {};
   if (newPassword) body.password = newPassword;
@@ -117,7 +117,7 @@ function editUser(id, username, email) {
 }
 
 async function deleteUser(id, username) {
-  if (!confirm(`Delete user "${username}"? Their retros will be reassigned to you so history is kept.`)) return;
+  if (!confirm(I18N.t('admin.deleteUserConfirm').replace('{name}', username))) return;
   try {
     await Auth.api(`/admin/users/${id}`, { method: 'DELETE' });
     Auth.toast(I18N.t('admin.userDeleted'));

@@ -131,28 +131,28 @@ const Auth = {
     overlay.innerHTML = `
       <div class="modal" role="dialog" aria-modal="true">
         <button class="modal-close" aria-label="Close" title="Close">&times;</button>
-        <h3>${isLogin ? 'Log In' : 'Create Account'}</h3>
+        <h3>${isLogin ? I18N.t('auth.loginTitle') : I18N.t('auth.registerTitle')}</h3>
         <p class="muted" style="font-size:0.85rem">${I18N.t('auth.adminsHint')}</p>
         <div class="form-group">
-          <label>Username</label>
+          <label>${I18N.t('auth.username')}</label>
           <input id="auth-user" autocomplete="username">
         </div>
         <div class="form-group">
-          <label>Password</label>
+          <label>${I18N.t('auth.password')}</label>
           <input type="password" id="auth-pass" autocomplete="${isLogin ? 'current-password' : 'new-password'}">
         </div>
         ${isLogin ? '' : `
         <div class="form-group">
           <label>${I18N.t('auth.secQuestionLabel')}</label>
-          <input id="auth-secq" placeholder="e.g. What is my favorite color?">
+          <input id="auth-secq" placeholder="${I18N.t('auth.secQPh')}">
         </div>
         <div class="form-group">
           <label>${I18N.t('auth.secAnswerLabel')}</label>
           <input id="auth-seca" autocomplete="off">
         </div>`}
         <div class="modal-actions">
-          <button class="btn secondary" id="auth-switch">${isLogin ? 'Need an account? Register' : 'Have an account? Log in'}</button>
-          <button class="btn" id="auth-go">${isLogin ? 'Log In' : 'Register'}</button>
+          <button class="btn secondary" id="auth-switch">${isLogin ? I18N.t('auth.needAccount') : I18N.t('auth.haveAccount')}</button>
+          <button class="btn" id="auth-go">${isLogin ? I18N.t('auth.loginBtn') : I18N.t('auth.register')}</button>
         </div>
         ${isLogin ? `<p class="muted" style="text-align:center;margin-top:12px"><a href="#" id="auth-forgot" style="color:var(--accent)">${I18N.t('auth.forgotPass')}</a> · <a href="#" id="auth-guest" style="color:var(--accent)">${I18N.t('auth.continueGuest')}</a></p>` : ''}
       </div>`;
@@ -216,15 +216,15 @@ const Auth = {
     overlay.innerHTML = `
       <div class="modal" role="dialog" aria-modal="true">
         <button class="modal-close" aria-label="Close" title="Close">&times;</button>
-        <h3>Reset Password</h3>
-        <p class="muted" style="font-size:0.85rem">Step 1 of 2 — enter your username to see your security question.</p>
+        <h3>${I18N.t('auth.resetTitle')}</h3>
+        <p class="muted" style="font-size:0.85rem">${I18N.t('auth.step1')}</p>
         <div class="form-group">
-          <label>Username</label>
+          <label>${I18N.t('auth.username')}</label>
           <input id="fp-user" autocomplete="username">
         </div>
         <div class="modal-actions">
-          <button class="btn secondary" id="fp-cancel">Cancel</button>
-          <button class="btn" id="fp-next">Next</button>
+          <button class="btn secondary" id="fp-cancel">${I18N.t('common.cancel')}</button>
+          <button class="btn" id="fp-next">${I18N.t('auth.next')}</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -238,7 +238,7 @@ const Auth = {
       if (!username) return Auth.toast(I18N.t('auth.enterUsername'));
       try {
         const { security_question } = await this.api(`/forgot-password/${encodeURIComponent(username)}`);
-        overlay.querySelector('.modal p.muted').textContent = 'Step 2 of 2 — answer your security question.';
+        overlay.querySelector('.modal p.muted').textContent = I18N.t('auth.step2');
         overlay.querySelector('.form-group').outerHTML = `
           <div class="form-group">
             <label>${Auth.esc(security_question)}</label>
@@ -249,7 +249,7 @@ const Auth = {
             <input type="password" id="fp-newpass" autocomplete="new-password">
           </div>`;
         const nextBtn = overlay.querySelector('#fp-next');
-        nextBtn.textContent = 'Reset Password';
+        nextBtn.textContent = I18N.t('auth.resetBtn');
         nextBtn.onclick = async () => {
           const security_answer = overlay.querySelector('#fp-answer').value.trim();
           const new_password = overlay.querySelector('#fp-newpass').value;

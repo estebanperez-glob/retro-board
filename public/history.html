@@ -19,15 +19,15 @@
     <h2 data-i18n="history.title">Past Retrospectives</h2>
     <p style="text-align:right"><a class="btn secondary" href="javascript:history.back()">← Back</a></p>
     <div class="history-filters" id="history-filters">
-      <input id="filter-text" placeholder="🔍 Search title" style="max-width:200px">
+      <input id="filter-text" data-i18n-placeholder="history.searchPh" placeholder="🔍 Search title" style="max-width:200px">
       <select id="filter-status">
-        <option value="">All statuses</option>
-        <option value="open">🟢 Open</option>
-        <option value="closed">✅ Closed</option>
+        <option value="" data-i18n="history.allStatuses">All statuses</option>
+        <option value="open" data-i18n="history.openOpt">🟢 Open</option>
+        <option value="closed" data-i18n="history.closedOpt">✅ Closed</option>
       </select>
-      <input type="date" id="filter-from" title="From date">
-      <input type="date" id="filter-to" title="To date">
-      <button class="btn small secondary" id="filter-clear">✕ Clear</button>
+      <input type="date" id="filter-from" title="From date" data-i18n-title="history.fromDate">
+      <input type="date" id="filter-to" title="To date" data-i18n-title="history.toDate">
+      <button class="btn small secondary" id="filter-clear" data-i18n="history.clear">✕ Clear</button>
     </div>
     <div id="health-score-section"></div>
     <div id="evolution-chart" class="evolution-chart" style="position:relative"></div>

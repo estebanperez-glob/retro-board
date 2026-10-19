@@ -4,7 +4,7 @@ async function loadLeaderboard() {
   const rows = await res.json();
   const tbody = document.querySelector('#leaderboard-table tbody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="muted">No points yet. Complete commitments to earn points!</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="4" class="muted">${I18N.t('leaderboard.empty')}</td></tr>`;
     return;
   }
   const medals = ['🥇', '🥈', '🥉'];

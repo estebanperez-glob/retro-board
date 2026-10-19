@@ -4,9 +4,9 @@ const app = document.getElementById('app');
 function renderLoginRequired() {
   app.innerHTML = `
     <div class="auth-required">
-      <h2>🔒 My Account</h2>
-      <p class="muted" style="margin:12px 0">You need to log in to manage your account.</p>
-      <button class="btn" id="acct-login">Log In / Register</button>
+      <h2>🔒 ${I18N.t('account.title')}</h2>
+      <p class="muted" style="margin:12px 0">${I18N.t('account.loginRequired')}</p>
+      <button class="btn" id="acct-login">${I18N.t('mc.loginBtn')}</button>
     </div>`;
   document.getElementById('acct-login').onclick = () => Auth.openAuthModal();
 }
@@ -25,70 +25,70 @@ async function renderAccount() {
 
   app.innerHTML = `
     <div class="account-wrap">
-      <h2>👤 My Account</h2>
-      <p class="muted">Logged in as <strong>${Auth.esc(account.username)}</strong></p>
+      <h2>👤 ${I18N.t('account.title')}</h2>
+      <p class="muted">${I18N.t('account.loggedInAs')} <strong>${Auth.esc(account.username)}</strong></p>
 
       <div class="account-card">
-        <h3>Change Password</h3>
+        <h3>${I18N.t('account.changePassword')}</h3>
         <div class="form-group">
-          <label>Current password</label>
+          <label>${I18N.t('account.curPass')}</label>
           <input type="password" id="acc-curpass" autocomplete="current-password">
         </div>
         <div class="form-group">
-          <label>New password (min 6 characters)</label>
+          <label>${I18N.t('account.newPass')}</label>
           <input type="password" id="acc-newpass" autocomplete="new-password">
         </div>
         <div class="form-group">
-          <label>Repeat new password</label>
+          <label>${I18N.t('account.repeatNewPass')}</label>
           <input type="password" id="acc-newpass2" autocomplete="new-password">
         </div>
-        <button class="btn" id="acc-savepass">Change Password</button>
+        <button class="btn" id="acc-savepass">${I18N.t('account.changePassword')}</button>
       </div>
 
       <div class="account-card">
-        <h3>💾 Data Backup</h3>
-        <p class="muted" style="font-size:0.85rem">Download a full JSON backup of all your retros (participants, cards, votes and commitments). Keep it as a safety copy.</p>
-        <button class="btn secondary" id="acc-backup">⬇️ Download Backup (JSON)</button>
+        <h3>${I18N.t('account.backupTitle')}</h3>
+        <p class="muted" style="font-size:0.85rem">${I18N.t('account.backupSub')}</p>
+        <button class="btn secondary" id="acc-backup">${I18N.t('account.downloadBackup')}</button>
       </div>
 
       <div class="account-card">
-        <h3>Security Question</h3>
+        <h3>${I18N.t('account.securityQuestion')}</h3>
         <p class="muted" style="font-size:0.85rem">
           ${account.security_question
-            ? `Current question: “${Auth.esc(account.security_question)}”`
-            : 'You have no security question yet — set one so you can recover your password if you forget it.'}
+            ? `${I18N.t('account.curQ')} “${Auth.esc(account.security_question)}”`
+            : I18N.t('account.noSecQ')}
         </p>
         <div class="form-group">
-          <label>Current password (to confirm it's you)</label>
+          <label>${I18N.t('account.curPassConfirm')}</label>
           <input type="password" id="acc-secpass" autocomplete="current-password">
         </div>
         <div class="form-group">
-          <label>New security question</label>
-          <input id="acc-secq" placeholder="e.g. What is my favorite color?">
+          <label>${I18N.t('account.newSecQ')}</label>
+          <input id="acc-secq" placeholder="${I18N.t('auth.secQPh')}">
         </div>
         <div class="form-group">
-          <label>New security answer</label>
+          <label>${I18N.t('account.newSecA')}</label>
           <input id="acc-seca" autocomplete="off">
         </div>
-        <button class="btn" id="acc-savesec">Save Security Question</button>
+        <button class="btn" id="acc-savesec">${I18N.t('account.saveSecQ')}</button>
       </div>
 
       <div class="account-card">
-        <h3>📧 Email Notifications</h3>
+        <h3>${I18N.t('account.emailNotifs')}</h3>
         <p class="muted" style="font-size:0.85rem">
-          Get an email when your commitments become overdue (checked every 6 hours).
+          ${I18N.t('account.emailNotifsSub')}
         </p>
         <div class="form-group">
-          <label>Email address</label>
+          <label>${I18N.t('account.emailLabel')}</label>
           <input type="email" id="acc-email" placeholder="you@example.com" value="${Auth.esc(account.email || '')}">
         </div>
         <div class="form-group">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="acc-notify" ${account.notify_overdue ? 'checked' : ''} style="width:auto">
-            Notify me about overdue commitments
+            ${I18N.t('account.notifyOverdue')}
           </label>
         </div>
-        <button class="btn" id="acc-saveemail">Save Email Settings</button>
+        <button class="btn" id="acc-saveemail">${I18N.t('account.saveEmail')}</button>
       </div>
     </div>`;
 

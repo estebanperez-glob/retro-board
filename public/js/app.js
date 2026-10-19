@@ -280,13 +280,13 @@ async function createRetroWithCarryOver(title, sprint, template, is_anonymous, c
         overlay.className = 'modal-overlay';
         overlay.innerHTML = `
           <div class="modal">
-            <h3>📋 Carry over pending commitments</h3>
+            <h3>${I18N.t('board.carryOverTitle')}</h3>
             <p class="muted">The retro "<strong>${Auth.esc(previous.title)}</strong>" ${I18N.t('board.carryOverHas')} ${pending.length} ${I18N.t('board.carryOverPending')}</p>
             <div class="carry-list">${list}</div>
             <p class="muted">${I18N.t('board.carryOverImport')}</p>
             <div class="modal-actions">
-              <button class="btn secondary" id="carry-no">No, start fresh</button>
-              <button class="btn" id="carry-yes">Yes, import them</button>
+              <button class="btn secondary" id="carry-no">${I18N.t('board.carryOverNo')}</button>
+              <button class="btn" id="carry-yes">${I18N.t('board.carryOverYes')}</button>
             </div>
           </div>`;
         document.body.appendChild(overlay);
@@ -337,11 +337,11 @@ async function renderCommitmentsDashboard() {
   section.innerHTML = `
     <div class="dashboard">
       <div class="dashboard-header">
-        <h2>📋 Pending Commitments <span class="badge">${items.length}</span></h2>
-        <button class="btn small secondary" id="copy-summary">📋 Copy Summary for Slack/Email</button>
+        <h2>📋 ${I18N.t('board.kanbanPending').replace('⏳ ', '')} <span class="badge">${items.length}</span></h2>
+        <button class="btn small secondary" id="copy-summary">📋 ${I18N.t('home.copySummary')}</button>
       </div>
-      ${overdue.length ? `<h3 class="overdue-title">⚠️ Overdue (${overdue.length})</h3>${overdue.map(renderItem).join('')}` : ''}
-      ${onTrack.length ? `<h3>On Track (${onTrack.length})</h3>${onTrack.map(renderItem).join('')}` : ''}
+      ${overdue.length ? `<h3 class="overdue-title">${I18N.t('mc.overdue')} (${overdue.length})</h3>${overdue.map(renderItem).join('')}` : ''}
+      ${onTrack.length ? `<h3>${I18N.t('mc.onTrack')} (${onTrack.length})</h3>${onTrack.map(renderItem).join('')}` : ''}
     </div>`;
   document.getElementById('copy-summary').onclick = () => copyCommitmentsSummary(items);
 }
@@ -351,11 +351,11 @@ function copyCommitmentsSummary(items) {
   for (const cm of items) {
     (byAssignee[cm.assignee] = byAssignee[cm.assignee] || []).push(cm);
   }
-  const lines = ['📋 Pending commitments — Retro Board', ''];
+  const lines = [`📋 ${I18N.t('board.kanbanPending').replace('⏳ ', '')} — Retro Board`, ''];
   for (const [assignee, list] of Object.entries(byAssignee)) {
     lines.push(`*${assignee}*`);
     for (const cm of list) {
-      const due = cm.due_date ? ` (due ${cm.due_date}${cm.is_overdue ? ' — OVERDUE ⚠️' : ''})` : '';
+      const due = cm.due_date ? ` (${I18N.t('board.dueDate')} ${cm.due_date}${cm.is_overdue ? ` — ${I18N.t('mc.overdue')} ⚠️` : ''})` : '';
       lines.push(`  • ${cm.description}${due}`);
     }
     lines.push('');
@@ -725,7 +725,7 @@ function wireTouchMove(board) {
       ${columns.filter(c => c.dataset.col !== current).map(c =>
         `<button class="btn small secondary" data-col="${c.dataset.col}">${c.querySelector('h3')?.textContent || c.dataset.col}</button>`
       ).join('')}
-      <button class="btn small danger" id="touch-move-cancel">Cancel</button>`;
+      <button class="btn small danger" id="touch-move-cancel">${I18N.t('common.cancel')}</button>`;
     document.body.appendChild(menu);
     menu.addEventListener('click', async e => {
       const btn = e.target.closest('button[data-col]');
@@ -749,7 +749,7 @@ function renderCard(card) {
       ${groupBadge ? `<div class="group-row">${groupBadge}</div>` : ''}
       <div class="content">${Auth.esc(card.content)} <span class="sentiment-badge" title="${I18N.t('board.feedbackTone')} ${sentimentOf(card.content)}">${SENTIMENT_EMOJI[sentimentOf(card.content)]}</span></div>
       <div class="meta">
-        <span>by ${Auth.esc(card.author)}</span>
+        <span>${I18N.t('board.by')} ${Auth.esc(card.author)}</span>
         <span>
           <button class="vote-btn" data-id="${card.id}" title="${I18N.t('board.vote')}" aria-label="${I18N.t('board.voteForCard')}">👍 ${card.votes}</button>
           <button class="edit-btn" data-id="${card.id}" data-content="${Auth.esc(card.content)}" title="${I18N.t('board.edit')}" aria-label="${I18N.t('board.editCard')}">✏️</button>
@@ -764,13 +764,13 @@ function openEditCardModal(cardId, currentContent) {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal">
-      <h3>Edit Card</h3>
+      <h3>${I18N.t('board.editCardTitle')}</h3>
       <div class="form-group">
         <textarea id="card-content"></textarea>
       </div>
       <div class="modal-actions">
-        <button class="btn secondary" id="card-cancel">Cancel</button>
-        <button class="btn" id="card-save">Save</button>
+        <button class="btn secondary" id="card-cancel">${I18N.t('common.cancel')}</button>
+        <button class="btn" id="card-save">${I18N.t('common.save')}</button>
       </div>
     </div>`;
   // Set the value via JS (not interpolation) — avoids double-escaping and XSS
@@ -886,8 +886,8 @@ function openCommitmentModal(existing = null) {
         <input type="date" id="cm-due" value="${existing?.due_date || ''}">
       </div>
       <div class="modal-actions">
-        <button class="btn secondary" id="cm-cancel">Cancel</button>
-        <button class="btn" id="cm-save">${existing ? 'Save' : 'Create'}</button>
+        <button class="btn secondary" id="cm-cancel">${I18N.t('common.cancel')}</button>
+        <button class="btn" id="cm-save">${existing ? I18N.t('common.save') : I18N.t('board.create')}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -972,7 +972,7 @@ function handleLiveEvent(event, payload) {
       refreshCards();
       break;
     case 'points_awarded':
-      toast(`🎉 ${payload.participant} earned ${payload.amount} points!`, 'points');
+      toast(I18N.t('board.pointsEarned').replace('{name}', payload.participant).replace('{n}', payload.amount), 'points');
       break;
     case 'retro_closed':
       toast(I18N.t('board.retroClosedMsg'));
@@ -1010,14 +1010,14 @@ async function refreshVotesCounter() {
   if (!el) return;
   try {
     const { used, max } = await Auth.api(`/retros/${currentRetroId}/votes-used?voter=${encodeURIComponent(currentUser)}`);
-    el.textContent = `👍 ${used}/${max} votes used`;
+    el.textContent = I18N.t('board.votesUsed').replace('{n}', `${used}/${max}`);
   } catch { /* counter is non-critical */ }
 }
 
 function wireRetroEvents() {
   const closeBtn = document.getElementById('close-retro');
   if (closeBtn) closeBtn.onclick = async () => {
-    if (confirm('Close this retro? It will move to History.')) {
+    if (confirm(I18N.t('board.closeConfirm'))) {
       await Auth.api(`/retros/${currentRetroId}/close`, { method: 'POST' });
       toast(I18N.t('board.retroClosed'));
     }
@@ -1029,14 +1029,14 @@ function wireRetroEvents() {
   };
   const deleteBtn = document.getElementById('delete-retro');
   if (deleteBtn) deleteBtn.onclick = async () => {
-    if (confirm('⚠️ Delete this retro permanently? All cards, commitments and points will be lost.')) {
+    if (confirm(I18N.t('board.deleteConfirm'))) {
       await Auth.api(`/retros/${currentRetroId}`, { method: 'DELETE' });
       location.href = '/';
     }
   };
   const duplicateBtn = document.getElementById('duplicate-retro');
   if (duplicateBtn) duplicateBtn.onclick = async () => {
-    if (!confirm('Duplicate this retro with the same configuration (fresh board)?')) return;
+    if (!confirm(I18N.t('board.duplicateConfirm'))) return;
     try {
       const result = await Auth.api(`/retros/${currentRetroId}/duplicate`, { method: 'POST' });
       toast(I18N.t('board.retroDuplicated'));
@@ -1047,7 +1047,7 @@ function wireRetroEvents() {
   };
   const saveTemplateBtn = document.getElementById('save-template');
   if (saveTemplateBtn) saveTemplateBtn.onclick = async () => {
-    const name = prompt('Template name (e.g. "My Sprint Retro"):');
+    const name = prompt(I18N.t('board.tplNamePrompt'));
     if (!name || !name.trim()) return;
     try {
       await Auth.api(`/retros/${currentRetroId}/save-template`, {
@@ -1077,7 +1077,7 @@ function wireRetroEvents() {
   const webhookBtn = document.createElement('button');
   webhookBtn.className = 'btn small secondary';
   webhookBtn.id = 'config-webhook';
-  webhookBtn.textContent = '🔔 Slack/Teams Webhook';
+  webhookBtn.textContent = I18N.t('board.webhook');
   webhookBtn.style.marginLeft = '8px';
   if (retroIsAdmin) {
     document.getElementById('add-commitment').parentElement.appendChild(webhookBtn);
@@ -1118,7 +1118,7 @@ async function openPrintableActa(retroId) {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Retro Board — Minutes</title>
+  <title>${I18N.t('board.minutesTitle')}</title>
   <style>
     body { font-family: Georgia, 'Times New Roman', serif; max-width: 720px; margin: 40px auto; color: #1a1a2e; line-height: 1.6; }
     h1 { border-bottom: 2px solid #5b6ee1; padding-bottom: 8px; }
@@ -1129,7 +1129,7 @@ async function openPrintableActa(retroId) {
   </style>
 </head>
 <body>
-  <div class="print-hint">💡 Tip: in the print dialog choose <strong>"Save as PDF"</strong> as the destination.</div>
+  <div class="print-hint">${I18N.t('board.printTip')}</div>
   ${html}
 </body>
 </html>`);
@@ -1156,11 +1156,11 @@ async function showAiSummary() {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal wide">
-      <h3>✨ Executive Summary</h3>
+      <h3>${I18N.t('board.summaryTitle')}</h3>
       <pre id="summary-text" class="summary-pre">${Auth.esc(md)}</pre>
       <div class="modal-actions">
-        <button class="btn secondary" id="summary-copy">📋 Copy</button>
-        <button class="btn" id="summary-close">Close</button>
+        <button class="btn secondary" id="summary-copy">${I18N.t('common.copy')}</button>
+        <button class="btn" id="summary-close">${I18N.t('common.close')}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -1176,7 +1176,7 @@ async function showAiSummary() {
 async function autoGroupCards() {
   try {
     const result = await Auth.api(`/retros/${currentRetroId}/auto-group`, { method: 'POST' });
-    toast(`Grouped ${result.grouped} cards into ${result.groups} groups 🗂`);
+    toast(I18N.t('board.grouped').replace('{n}', result.grouped).replace('{g}', result.groups));
     const cards = await Auth.api(`/retros/${currentRetroId}/cards`);
     renderBoard(cards, currentTemplate());
   } catch (err) {
@@ -1188,8 +1188,8 @@ async function autoGroupCards() {
 const TIMER_PHASES = [
   { name: null, i18n: 'timer.gatherCards', minutes: 8 },
   { name: null, i18n: 'timer.discussGroup', minutes: 10 },
-  { name: 'Vote', minutes: 3 },
-  { name: 'Actions', minutes: 10 },
+  { name: null, i18n: 'timer.vote', minutes: 3 },
+  { name: null, i18n: 'timer.actions', minutes: 10 },
 ];
 
 function openFacilitatorTimer() {
@@ -1198,16 +1198,16 @@ function openFacilitatorTimer() {
   widget.id = 'timer-widget';
   widget.innerHTML = `
     <div class="timer-head">
-      <strong>⏱ Facilitator Timer</strong>
+      <strong>${I18N.t('timer.title')}</strong>
       <button class="timer-close" id="timer-close">✕</button>
     </div>
     <div class="timer-phase" id="timer-phase">${I18N.t('timer.gatherCards')}</div>
     <div class="timer-display" id="timer-display">08:00</div>
     <div class="timer-controls">
-      <button class="btn small" id="timer-start">▶ Start</button>
-      <button class="btn small secondary" id="timer-pause">⏸ Pause</button>
-      <button class="btn small secondary" id="timer-reset">↺ Reset</button>
-      <button class="btn small secondary" id="timer-next">⏭ Next Phase</button>
+      <button class="btn small" id="timer-start">${I18N.t('timer.start')}</button>
+      <button class="btn small secondary" id="timer-pause">${I18N.t('timer.pause')}</button>
+      <button class="btn small secondary" id="timer-reset">${I18N.t('timer.reset')}</button>
+      <button class="btn small secondary" id="timer-next">${I18N.t('timer.next')}</button>
     </div>
     <div class="timer-phases-list" id="timer-phases"></div>`;
   document.body.appendChild(widget);
@@ -1230,8 +1230,8 @@ function openFacilitatorTimer() {
     remaining -= 1;
     if (remaining <= 0) {
       stop();
-      toast(`⏰ Time's up for "${I18N.t(TIMER_PHASES[phaseIndex].i18n)}"!`);
-      document.title = '⏰ Time\'s up! · Retro Board';
+      toast(`${I18N.t('timer.timesUp')} "${I18N.t(TIMER_PHASES[phaseIndex].i18n)}"!`);
+      document.title = I18N.t('timer.timesUpTitle');
       return;
     }
     renderTime();
@@ -1255,17 +1255,17 @@ function openWebhookModal() {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal">
-      <h3>🔔 Slack / Teams Notifications</h3>
+      <h3>${I18N.t('board.webhookTitle')}</h3>
       <p class="muted" style="font-size:0.85rem">${I18N.t('board.webhookHelp')}</p>
       <div class="form-group">
-        <label>Webhook URL</label>
+        <label>${I18N.t('common.webhookUrl')}</label>
         <input id="webhook-url" placeholder="https://hooks.slack.com/services/..." value="${Auth.esc(retroWebhookUrl || '')}">
       </div>
       <div class="modal-actions">
-        <button class="btn secondary" id="webhook-remove">Remove</button>
-        <button class="btn secondary" id="webhook-cancel">Cancel</button>
-        <button class="btn secondary" id="webhook-test">🧪 Send test</button>
-        <button class="btn" id="webhook-save">Save</button>
+        <button class="btn secondary" id="webhook-remove">${I18N.t('board.webhookRemove')}</button>
+        <button class="btn secondary" id="webhook-cancel">${I18N.t('common.cancel')}</button>
+        <button class="btn secondary" id="webhook-test">${I18N.t('board.webhookTest')}</button>
+        <button class="btn" id="webhook-save">${I18N.t('common.save')}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
