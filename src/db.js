@@ -111,6 +111,46 @@ CREATE TABLE IF NOT EXISTS custom_templates (
   created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
   UNIQUE(user_id, name)
 );
+
+-- Multi-team / SAFe-style structure: organization -> programs -> teams -> retros
+CREATE TABLE IF NOT EXISTS programs (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'))
+);
+
+CREATE TABLE IF NOT EXISTS program_members (
+  program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'member', -- 'rte' (program admin) | 'member'
+  UNIQUE(program_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS teams (
+  id SERIAL PRIMARY KEY,
+  program_id INTEGER REFERENCES programs(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'))
+);
+
+CREATE TABLE IF NOT EXISTS team_members (
+  team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  username TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member', -- 'lead' | 'member'
+  UNIQUE(team_id, username)
+);
+
+CREATE TABLE IF NOT EXISTS program_increments (
+  id SERIAL PRIMARY KEY,
+  program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  start_date TEXT,
+  end_date TEXT,
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'))
+);
 `;
 
 async function initSchema() {
@@ -132,6 +172,14 @@ async function initSchema() {
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS webhook_url TEXT',
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS custom_columns TEXT',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS is_master BOOLEAN NOT NULL DEFAULT FALSE',
+    // Multi-team / SAFe structure: retros can belong to a team and a PI
+    'ALTER TABLE retros ADD COLUMN IF NOT EXISTS team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL',
+    'ALTER TABLE retros ADD COLUMN IF NOT EXISTS pi_id INTEGER REFERENCES program_increments(id) ON DELETE SET NULL',
+    // Cross-team dependencies (SAFe program board): commitment that another team is waiting on
+    'ALTER TABLE commitments ADD COLUMN IF NOT EXISTS depends_on_team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL',
+    `CREATE INDEX IF NOT EXISTS idx_retros_team_id ON retros(team_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_retros_pi_id ON retros(pi_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_teams_program_id ON teams(program_id)`,
     `CREATE INDEX IF NOT EXISTS idx_page_views_day ON page_views(day)`,
     // Backfill: generate join codes and participant tokens for existing rows.
     // Guarded so the UPDATE only runs when there are actually rows to fix.

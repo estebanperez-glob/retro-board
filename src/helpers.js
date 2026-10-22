@@ -81,6 +81,44 @@ async function requireMaster(req, res) {
   return user;
 }
 
+// --- Multi-team / SAFe access checks ---
+
+// Team membership: returns { role } for the logged-in user, or null.
+// Program members (RTE) also get access to team data (read/aggregate).
+async function getTeamRole(teamId, user) {
+  if (!user) return null;
+  const member = await db.get('SELECT role FROM team_members WHERE team_id = $1 AND username = $2', [teamId, user.username]);
+  if (member) return { role: member.role };
+  const team = await db.get('SELECT program_id FROM teams WHERE id = $1', [teamId]);
+  if (team?.program_id) {
+    const pm = await db.get('SELECT role FROM program_members WHERE program_id = $1 AND user_id = $2', [team.program_id, user.id]);
+    if (pm) return { role: pm.role === 'rte' ? 'rte' : 'program_member' };
+  }
+  return null;
+}
+
+// Require team membership (or program-level access). Responds and returns null when denied.
+async function requireTeamAccess(req, res, teamId) {
+  const user = await getUser(req);
+  if (!user) { res.status(401).json({ error: 'Log in required' }); return null; }
+  const team = await db.get('SELECT * FROM teams WHERE id = $1', [teamId]);
+  if (!team) { res.status(404).json({ error: 'Team not found' }); return null; }
+  const role = await getTeamRole(team.id, user);
+  if (!role) { res.status(403).json({ error: 'You are not a member of this team' }); return null; }
+  return { user, team, role: role.role };
+}
+
+// Program access: RTE (admin) or member. Returns { user, program, role } or null.
+async function requireProgramAccess(req, res, programId) {
+  const user = await getUser(req);
+  if (!user) { res.status(401).json({ error: 'Log in required' }); return null; }
+  const program = await db.get('SELECT * FROM programs WHERE id = $1', [programId]);
+  if (!program) { res.status(404).json({ error: 'Program not found' }); return null; }
+  const pm = await db.get('SELECT role FROM program_members WHERE program_id = $1 AND user_id = $2', [programId, user.id]);
+  if (!pm) { res.status(403).json({ error: 'You are not a member of this program' }); return null; }
+  return { user, program, role: pm.role };
+}
+
 // Async route wrapper: forwards errors to Express error handler
 const ah = fn => (req, res, next) => fn(req, res, next).catch(next);
 
@@ -138,6 +176,9 @@ module.exports = {
   requireRetroAccess,
   requireRetroAdmin,
   requireMaster,
+  getTeamRole,
+  requireTeamAccess,
+  requireProgramAccess,
   ah,
   rateLimit,
   authRateLimit,

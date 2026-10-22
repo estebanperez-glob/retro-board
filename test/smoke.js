@@ -106,7 +106,31 @@ async function req(method, path, body, headers = {}) {
   r = await req('GET', '/api/my-overdue-count', null, auth);
   check('GET /api/my-overdue-count', r.status === 200, JSON.stringify(r.data).slice(0, 80));
 
-  // 11. Duplicate + delete
+  // 11. Organization: program -> team -> PI -> retro assignment
+  r = await req('POST', '/api/programs', { name: 'Smoke Program' }, auth);
+  const programId = r.data?.id;
+  check('POST /api/programs', (r.status === 200 || r.status === 201) && !!programId, JSON.stringify(r.data).slice(0, 120));
+  r = await req('POST', '/api/teams', { name: 'Smoke Team', program_id: programId }, auth);
+  const teamId = r.data?.id;
+  check('POST /api/teams', (r.status === 200 || r.status === 201) && !!teamId, JSON.stringify(r.data).slice(0, 120));
+  r = await req('POST', '/api/programs/' + programId + '/pis', { name: 'PI-1' }, auth);
+  const piId = r.data?.id;
+  check('POST /api/programs/:id/pis', (r.status === 200 || r.status === 201) && !!piId, JSON.stringify(r.data).slice(0, 120));
+  r = await req('PUT', '/api/retros/' + retroId + '/team', { team_id: teamId }, auth);
+  check('PUT retro team', r.status === 200 && r.data?.team_id === teamId, JSON.stringify(r.data).slice(0, 80));
+  r = await req('PUT', '/api/retros/' + retroId + '/pi', { pi_id: piId }, auth);
+  check('PUT retro pi', r.status === 200 && r.data?.pi_id === piId, JSON.stringify(r.data).slice(0, 80));
+  r = await req('GET', '/api/teams/' + teamId + '/dashboard', null, auth);
+  check('GET team dashboard', r.status === 200 && Array.isArray(r.data?.retros) && r.data.retros.some(x => x.id === retroId), JSON.stringify(r.data).slice(0, 100));
+  r = await req('GET', '/api/programs/' + programId + '/dashboard', null, auth);
+  check('GET program dashboard', r.status === 200 && Array.isArray(r.data?.teamStats), JSON.stringify(r.data).slice(0, 80));
+  r = await req('GET', '/api/pis/' + piId + '/dashboard', null, auth);
+  check('GET PI dashboard', r.status === 200 && Array.isArray(r.data?.byTeam), JSON.stringify(r.data).slice(0, 80));
+  // Access control: another user must NOT see the smoke program
+  r = await req('GET', '/api/programs/' + programId + '/dashboard');
+  check('program dashboard denies stranger', r.status === 401 || r.status === 403, 'status ' + r.status);
+
+  // 12. Duplicate + delete
   r = await req('POST', '/api/retros/' + retroId + '/duplicate', {}, auth);
   const dupId = r.data?.id;
   check('POST duplicate', (r.status === 200 || r.status === 201) && !!dupId, JSON.stringify(r.data).slice(0, 120));

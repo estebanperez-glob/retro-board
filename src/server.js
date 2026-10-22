@@ -28,6 +28,7 @@ require('./routes/cards').register(app);
 require('./routes/commitments').register(app);
 require('./routes/admin').register(app);
 require('./routes/insights').register(app);
+require('./routes/org').register(app);
 
 // --- Health check ---
 app.get('/api/health', (req, res) => {
