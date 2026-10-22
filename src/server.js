@@ -8,6 +8,11 @@ const { setupWebSocket } = require('./ws');
 const app = express();
 const server = http.createServer(app);
 
+// Render terminates TLS on one reverse-proxy hop; trusting it makes req.ip
+// the real client IP so per-IP rate limiting works (otherwise every user
+// shares the proxy's single bucket).
+app.set('trust proxy', 1);
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

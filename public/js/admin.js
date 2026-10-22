@@ -93,8 +93,8 @@ async function loadUsers() {
             <td>${u.retros_created}</td>
             <td>${(u.created_at || '').slice(0, 10)}</td>
             <td class="users-actions">
-              <button class="btn btn-small" onclick="editUser(${u.id}, '${Auth.esc(u.username)}', '${Auth.esc(u.email || '')}', ${u.is_master})">${I18N.t('admin.edit')}</button>
-              <button class="btn btn-small btn-danger" onclick="deleteUser(${u.id}, '${Auth.esc(u.username)}')">${I18N.t('admin.delete')}</button>
+              <button class="btn btn-small user-edit" data-id="${u.id}" data-username="${Auth.esc(u.username)}" data-email="${Auth.esc(u.email || '')}">${I18N.t('admin.edit')}</button>
+              <button class="btn btn-small btn-danger user-delete" data-id="${u.id}" data-username="${Auth.esc(u.username)}">${I18N.t('admin.delete')}</button>
             </td>
           </tr>`).join('')}
       </tbody>
@@ -126,6 +126,18 @@ async function deleteUser(id, username) {
     Auth.toast(err.message);
   }
 }
+
+// Event delegation for user actions (avoids inline onclick — XSS-safe with
+// untrusted usernames, since data attributes are never evaluated as JS)
+document.getElementById('users-content')?.addEventListener('click', (e) => {
+  const editBtn = e.target.closest('.user-edit');
+  if (editBtn) {
+    editUser(Number(editBtn.dataset.id), editBtn.dataset.username, editBtn.dataset.email);
+    return;
+  }
+  const delBtn = e.target.closest('.user-delete');
+  if (delBtn) deleteUser(Number(delBtn.dataset.id), delBtn.dataset.username);
+});
 
 // ---------- Tabs ----------
 document.querySelectorAll('.tab-btn').forEach(btn => {

@@ -119,7 +119,8 @@ async function req(method, path, body, headers = {}) {
     try {
       require('dotenv').config();
       const { Pool } = require('pg');
-      const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+      const cs = process.env.DATABASE_URL + (process.env.DATABASE_URL.includes('?') ? '&' : '?') + 'uselibpqcompat=true';
+      const pool = new Pool({ connectionString: cs, ssl: { rejectUnauthorized: false } });
       await pool.query('DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE username LIKE $1)', [username]);
       const u = await pool.query('DELETE FROM users WHERE username = $1', [username]);
       console.log('cleanup: removed', u.rowCount, 'smoke user(s)');

@@ -22,7 +22,7 @@ function register(app) {
     if (!username || !password) return res.status(400).json({ error: 'Username and password are required' });
     if (username.trim().length < 3) return res.status(400).json({ error: 'Username must be at least 3 characters' });
     if (username.trim().length > 40) return res.status(400).json({ error: 'Username must be at most 40 characters' });
-    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
     if (password.length > 100) return res.status(400).json({ error: 'Password must be at most 100 characters' });
     const existing = await db.get('SELECT id FROM users WHERE username = $1', [username.trim().toLowerCase()]);
     if (existing) return res.status(409).json({ error: 'Username already taken' });
@@ -51,7 +51,7 @@ function register(app) {
   app.post('/api/forgot-password/:username', authRateLimit, ah(async (req, res) => {
     const { security_answer, new_password } = req.body;
     if (!security_answer || !new_password) return res.status(400).json({ error: 'Answer and new password are required' });
-    if (new_password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (new_password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
     const user = await db.get('SELECT id, security_answer_hash FROM users WHERE username = $1', [req.params.username.trim().toLowerCase()]);
     if (!user || !user.security_answer_hash || !verifyPassword(String(security_answer).trim().toLowerCase(), user.security_answer_hash)) {
       return res.status(401).json({ error: 'Incorrect answer to the security question' });
@@ -118,7 +118,7 @@ function register(app) {
   app.put('/api/account/password', ah(async (req, res) => {
     const { current_password, new_password } = req.body;
     if (!current_password || !new_password) return res.status(400).json({ error: 'Current and new password are required' });
-    if (new_password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (new_password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
     const user = await getUser(req);
     if (!user) return res.status(401).json({ error: 'Login required' });
     const row = await db.get('SELECT password_hash FROM users WHERE id = $1', [user.id]);

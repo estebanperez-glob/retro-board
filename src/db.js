@@ -8,9 +8,19 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
+// Neon requires TLS. The DATABASE_URL contains sslmode=require, which
+// pg-connection-string v2.14 treats as verify-full (with a deprecation
+// warning). Appending uselibpqcompat=true adopts libpq semantics now and
+// silences the warning. rejectUnauthorized:false because we have no CA bundle.
+const connectionString = (() => {
+  const url = process.env.DATABASE_URL;
+  if (/uselibpqcompat=/.test(url)) return url;
+  return url + (url.includes('?') ? '&' : '?') + 'uselibpqcompat=true';
+})();
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }, // required by Neon
+  connectionString,
+  ssl: { rejectUnauthorized: false },
 });
 
 const SCHEMA = `

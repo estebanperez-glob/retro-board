@@ -2,7 +2,7 @@
 const crypto = require('crypto');
 const {
   db, ah, FREE_MAX_RETROS, FREE_MAX_PARTICIPANTS,
-  getUser, getParticipant, requireRetroAccess, requireRetroAdmin,
+  getUser, getParticipant, requireRetroAccess, requireRetroAdmin, authRateLimit,
 } = require('../helpers');
 const { broadcast } = require('../ws');
 const { resolveColumns } = require('./cards');
@@ -26,6 +26,7 @@ function register(app) {
     const { title, sprint, carry_over_from, template, is_anonymous, custom_columns } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
     if (String(title).trim().length > 100) return res.status(400).json({ error: 'Title must be at most 100 characters' });
+    const sprintCap = sprint ? String(sprint).trim().slice(0, 60) : null;
     const user = await getUser(req);
     if (!user) return res.status(401).json({ error: 'Log in to create a retro' });
     // Freemium limits: free plan caps total retros and participants per retro
@@ -52,7 +53,7 @@ function register(app) {
     const joinCode = crypto.randomBytes(5).toString('hex'); // 10-char invitation code
     const info = await db.run(
       'INSERT INTO retros (title, sprint, created_by, template, is_anonymous, join_code, custom_columns) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-      [title, sprint || null, user.username, tpl, !!is_anonymous, joinCode, customColumnsJson]);
+      [title, sprintCap, user.username, tpl, !!is_anonymous, joinCode, customColumnsJson]);
     const retroId = Number(info.lastInsertRowid);
 
     // The admin automatically becomes a member so they can add cards and vote
@@ -61,9 +62,11 @@ function register(app) {
       'INSERT INTO participants (retro_id, name, access_token) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
       [retroId, user.username, adminToken]);
 
-    // Carry-over: copy pending commitments from a previous retro into this one
+    // Carry-over: copy pending commitments from a previous retro into this one.
+    // Ownership check: only the creator of the source retro may carry it over
+    // (otherwise any user could exfiltrate another team's commitments by ID).
     if (carry_over_from) {
-      const source = await db.get('SELECT id FROM retros WHERE id = $1', [carry_over_from]);
+      const source = await db.get('SELECT id FROM retros WHERE id = $1 AND created_by = $2', [carry_over_from, user.username]);
       if (source) {
         const pending = await db.all(
           "SELECT description, assignee, due_date FROM commitments WHERE retro_id = $1 AND status != 'done'",
@@ -195,7 +198,8 @@ function register(app) {
   }));
 
   // --- Participants ---
-  app.post('/api/retros/:id/join', ah(async (req, res) => {
+  // Rate limited: prevents brute-forcing the 40-bit join code by retro ID
+  app.post('/api/retros/:id/join', authRateLimit, ah(async (req, res) => {
     const { name, join_code } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
     const retro = await db.get('SELECT * FROM retros WHERE id = $1', [req.params.id]);
@@ -203,7 +207,7 @@ function register(app) {
     if (!join_code || join_code.trim().toLowerCase() !== (retro.join_code || '').toLowerCase()) {
       return res.status(403).json({ error: 'Invalid invitation code. Ask the retro admin for the link.' });
     }
-    const trimmed = name.trim();
+    const trimmed = name.trim().slice(0, 60);
     // Re-join: if the name already exists, hand back the existing token
     const existing = await db.get('SELECT access_token FROM participants WHERE retro_id = $1 AND name = $2', [retro.id, trimmed]);
     if (existing) {
