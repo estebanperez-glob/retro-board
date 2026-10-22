@@ -1,7 +1,7 @@
 // Multi-team / SAFe routes: programs, teams, program increments (PIs),
 // team & program dashboards with cross-team rollups.
 const {
-  db, ah, getUser, requireTeamAccess, requireProgramAccess, getTeamRole,
+  db, ah, getUser, requireTeamAccess, requireProgramAccess, getTeamRole, requireOrgManager,
 } = require('../helpers');
 
 // Health score formula shared with insights.js: participation, engagement,
@@ -19,8 +19,8 @@ function register(app) {
   // ---------- Programs ----------
 
   app.post('/api/programs', ah(async (req, res) => {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Log in to create a program' });
+    const user = await requireOrgManager(req, res);
+    if (!user) return;
     const { name, description } = req.body;
     if (!name || !String(name).trim()) return res.status(400).json({ error: 'Program name is required' });
     const programName = String(name).trim().slice(0, 60);
@@ -71,11 +71,40 @@ function register(app) {
     res.json({ ok: true });
   }));
 
+  // List program members (any program member can see)
+  app.get('/api/programs/:id/members', ah(async (req, res) => {
+    const access = await requireProgramAccess(req, res, req.params.id);
+    if (!access) return;
+    const members = await db.all(`
+      SELECT u.username, pm.role FROM program_members pm
+      JOIN users u ON u.id = pm.user_id
+      WHERE pm.program_id = $1 ORDER BY pm.role DESC, u.username`, [access.program.id]);
+    res.json(members);
+  }));
+
+  // Remove a program member (RTE only; last RTE protected)
+  app.delete('/api/programs/:id/members/:username', ah(async (req, res) => {
+    const access = await requireProgramAccess(req, res, req.params.id);
+    if (!access) return;
+    if (access.role !== 'rte') return res.status(403).json({ error: 'Only the RTE can manage program members' });
+    const target = await db.get(`
+      SELECT pm.user_id, pm.role FROM program_members pm
+      JOIN users u ON u.id = pm.user_id
+      WHERE pm.program_id = $1 AND u.username = $2`, [access.program.id, req.params.username]);
+    if (!target) return res.status(404).json({ error: 'Member not found' });
+    if (target.role === 'rte') {
+      const rtes = await db.get(`SELECT COUNT(*) AS n FROM program_members WHERE program_id = $1 AND role = 'rte'`, [access.program.id]);
+      if (Number(rtes.n) <= 1) return res.status(400).json({ error: 'Cannot remove the last RTE' });
+    }
+    await db.run('DELETE FROM program_members WHERE program_id = $1 AND user_id = $2', [access.program.id, target.user_id]);
+    res.json({ ok: true });
+  }));
+
   // ---------- Teams ----------
 
   app.post('/api/teams', ah(async (req, res) => {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Log in to create a team' });
+    const user = await requireOrgManager(req, res);
+    if (!user) return;
     const { name, program_id } = req.body;
     if (!name || !String(name).trim()) return res.status(400).json({ error: 'Team name is required' });
     const teamName = String(name).trim().slice(0, 60);
@@ -94,6 +123,24 @@ function register(app) {
     await db.run('INSERT INTO team_members (team_id, username, role) VALUES ($1, $2, $3)', [teamId, user.username, 'lead']);
     const team = await db.get('SELECT * FROM teams WHERE id = $1', [teamId]);
     res.status(201).json(team);
+  }));
+
+  // Assign an existing (standalone) team to a program (RTE or org manager)
+  app.put('/api/teams/:id/program', ah(async (req, res) => {
+    const user = await requireOrgManager(req, res);
+    if (!user) return;
+    const team = await db.get('SELECT * FROM teams WHERE id = $1', [req.params.id]);
+    if (!team) return res.status(404).json({ error: 'Team not found' });
+    const { program_id } = req.body;
+    if (program_id === null || program_id === undefined || program_id === '') {
+      await db.run('UPDATE teams SET program_id = NULL WHERE id = $1', [team.id]);
+      return res.json({ ok: true, program_id: null });
+    }
+    const access = await requireProgramAccess(req, res, Number(program_id));
+    if (!access) return;
+    if (access.role !== 'rte') return res.status(403).json({ error: 'Only the RTE can add teams to a program' });
+    await db.run('UPDATE teams SET program_id = $1 WHERE id = $2', [access.program.id, team.id]);
+    res.json({ ok: true, program_id: access.program.id });
   }));
 
   // Teams visible to the user: teams they belong to + teams in their programs

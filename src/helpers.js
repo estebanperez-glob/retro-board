@@ -28,7 +28,7 @@ async function getUser(req) {
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return null;
   const row = await db.get(
-    `SELECT u.id, u.username, u.is_master FROM sessions s JOIN users u ON u.id = s.user_id
+    `SELECT u.id, u.username, u.is_master, u.can_manage_org FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.token = $1 AND s.created_at >= to_char(now() AT TIME ZONE 'UTC' - interval '30 days', 'YYYY-MM-DD HH24:MI:SS')`,
     [token]);
   return row || null;
@@ -78,6 +78,18 @@ async function requireMaster(req, res) {
   const user = await getUser(req);
   if (!user) { res.status(401).json({ error: 'Log in required' }); return null; }
   if (!user.is_master) { res.status(403).json({ error: 'Master access required' }); return null; }
+  return user;
+}
+
+// Org managers: only users with can_manage_org (or masters) can create
+// programs/teams. Granted from the admin panel, like is_master.
+async function requireOrgManager(req, res) {
+  const user = await getUser(req);
+  if (!user) { res.status(401).json({ error: 'Log in required' }); return null; }
+  if (!user.is_master && !user.can_manage_org) {
+    res.status(403).json({ error: 'You are not authorized to manage the organization. Ask an administrator.' });
+    return null;
+  }
   return user;
 }
 
@@ -176,6 +188,7 @@ module.exports = {
   requireRetroAccess,
   requireRetroAdmin,
   requireMaster,
+  requireOrgManager,
   getTeamRole,
   requireTeamAccess,
   requireProgramAccess,

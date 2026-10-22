@@ -172,6 +172,8 @@ async function initSchema() {
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS webhook_url TEXT',
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS custom_columns TEXT',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS is_master BOOLEAN NOT NULL DEFAULT FALSE',
+    // Org managers: only these users (or masters) can create programs/teams
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS can_manage_org BOOLEAN NOT NULL DEFAULT FALSE',
     // Multi-team / SAFe structure: retros can belong to a team and a PI
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL',
     'ALTER TABLE retros ADD COLUMN IF NOT EXISTS pi_id INTEGER REFERENCES program_increments(id) ON DELETE SET NULL',

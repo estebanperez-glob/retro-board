@@ -90,7 +90,11 @@
   async function openTeam(teamId) {
     const el = content();
     try {
-      const d = await Auth.api(`/teams/${teamId}/dashboard`);
+      const [d, team, programs] = await Promise.all([
+        Auth.api(`/teams/${teamId}/dashboard`),
+        Auth.api(`/teams/${teamId}`),
+        Auth.api('/programs'),
+      ]);
       const retroRows = d.retros.map(r => `
         <tr>
           <td><a href="/retro.html?id=${r.id}">${esc(r.title)}</a></td>
@@ -100,6 +104,12 @@
         </tr>`).join('');
       const lbRows = (d.leaderboard || []).map((row, i) => `
         <tr><td>${['🥇', '🥈', '🥉'][i] || '#' + (i + 1)}</td><td>👤 ${esc(row.participant_name)}</td><td><strong>${row.total_points}</strong></td><td>${row.completed_commitments}</td></tr>`).join('');
+      const memberRows = (team.members || []).map(m => `
+        <tr>
+          <td>👤 ${esc(m.username)}</td>
+          <td>${m.role === 'lead' ? '⭐ Lead' : '👤 Member'}</td>
+          <td><button class="btn small secondary member-remove" data-user="${esc(m.username)}">Remove</button></td>
+        </tr>`).join('');
       el.innerHTML = `
         <p><a class="btn secondary small" href="#" id="back-to-org">← Organization</a></p>
         <h3>👥 ${esc(d.team.name)}</h3>
@@ -108,13 +118,42 @@
           <small>Team Health Score</small>
         </div>
         <p class="muted">Commitments: ✅ ${d.commitments?.done || 0} done · ⏳ ${d.commitments?.pending || 0} pending</p>
-        <h4>Retros</h4>
+        <h4>Members</h4>
+        <table><thead><tr><th>User</th><th>Role</th><th></th></tr></thead>
+        <tbody>${memberRows || '<tr><td colspan="3" class="muted">No members yet.</td></tr>'}</tbody></table>
+        <p><button class="btn small" id="btn-add-member">➕ Add member</button></p>
+        <h4 style="margin-top:16px">Program</h4>
+        <p id="team-program-line">${team.program_id ? 'Assigned to a program.' : 'Standalone team (not in any program).'}</p>
+        <p><button class="btn small" id="btn-assign-program">🔗 Assign to program</button></p>
+        <h4 style="margin-top:16px">Retros</h4>
         <table><thead><tr><th>Title</th><th>Sprint</th><th>Status</th><th>Created</th></tr></thead>
         <tbody>${retroRows || '<tr><td colspan="4" class="muted">No retros assigned to this team yet.</td></tr>'}</tbody></table>
         <h4 style="margin-top:16px">Team Leaderboard</h4>
         <table><thead><tr><th>Rank</th><th>Participant</th><th>Points</th><th>Completed</th></tr></thead>
         <tbody>${lbRows || '<tr><td colspan="4" class="muted">No points yet.</td></tr>'}</tbody></table>`;
       el.querySelector('#back-to-org').onclick = e => { e.preventDefault(); loadOverview(); };
+      el.querySelector('#btn-add-member').onclick = () => {
+        const username = prompt('Username to add (they must be registered):');
+        if (!username || !username.trim()) return;
+        Auth.api(`/teams/${teamId}/members`, { method: 'POST', body: JSON.stringify({ username: username.trim() }) })
+          .then(() => { Auth.toast('Member added'); openTeam(teamId); })
+          .catch(err => Auth.toast(err.message));
+      };
+      el.querySelectorAll('.member-remove').forEach(b => b.onclick = () => {
+        if (!confirm(`Remove ${b.dataset.user} from this team?`)) return;
+        Auth.api(`/teams/${teamId}/members/${encodeURIComponent(b.dataset.user)}`, { method: 'DELETE' })
+          .then(() => { Auth.toast('Member removed'); openTeam(teamId); })
+          .catch(err => Auth.toast(err.message));
+      });
+      el.querySelector('#btn-assign-program').onclick = () => {
+        if (!programs.length) { Auth.toast('Create a program first'); return; }
+        const opts = programs.map(p => `${p.id}. ${p.name}`).join('\n');
+        const pick = prompt(`Assign to program (enter number, empty to unassign):\n${opts}`);
+        if (pick === null) return;
+        Auth.api(`/teams/${teamId}/program`, { method: 'PUT', body: JSON.stringify({ program_id: pick.trim() ? Number(pick.trim()) : null }) })
+          .then(() => { Auth.toast('Team assignment updated'); openTeam(teamId); })
+          .catch(err => Auth.toast(err.message));
+      };
     } catch (err) {
       el.innerHTML = `<p class="muted">🔒 ${esc(err.message)}</p>`;
     }
@@ -124,7 +163,11 @@
   async function openProgram(programId) {
     const el = content();
     try {
-      const d = await Auth.api(`/programs/${programId}/dashboard`);
+      const [d, members] = await Promise.all([
+        Auth.api(`/programs/${programId}/dashboard`),
+        Auth.api(`/programs/${programId}/members`),
+      ]);
+      const isRte = d.program.role === 'rte';
       const statRows = (d.teamStats || []).map(t => `
         <tr>
           <td>${esc(t.team_name)}</td>
@@ -143,10 +186,20 @@
           <td>→ ${esc(dep.depends_on_team_name || '—')}</td>
           <td>${dep.status === 'done' ? '✅' : '⏳'}</td>
         </tr>`).join('');
+      const memberRows = members.map(m => `
+        <tr>
+          <td>👤 ${esc(m.username)}</td>
+          <td>${m.role === 'rte' ? '⭐ RTE' : '👤 Member'}</td>
+          <td>${isRte ? `<button class="btn small secondary pm-remove" data-user="${esc(m.username)}">Remove</button>` : ''}</td>
+        </tr>`).join('');
       el.innerHTML = `
         <p><a class="btn secondary small" href="#" id="back-to-org">← Back</a></p>
         <h3>📋 ${esc(d.program.name)}</h3>
-        <h4>Teams</h4>
+        <h4>Program Members</h4>
+        <table><thead><tr><th>User</th><th>Role</th><th></th></tr></thead>
+        <tbody>${memberRows || '<tr><td colspan="3" class="muted">No members yet.</td></tr>'}</tbody></table>
+        ${isRte ? '<p><button class="btn small" id="btn-add-pm">➕ Add member</button></p>' : ''}
+        <h4 style="margin-top:16px">Teams</h4>
         <table><thead><tr><th>Team</th><th>Retros</th><th>Participants</th><th>Commitments done</th><th>Points</th></tr></thead>
         <tbody>${statRows || '<tr><td colspan="5" class="muted">No teams in this program yet.</td></tr>'}</tbody></table>
         <h4 style="margin-top:16px">Inter-team Leaderboard</h4>
@@ -156,6 +209,21 @@
         <table><thead><tr><th>Retro</th><th>Commitment</th><th>Owner team</th><th>Depends on</th><th>Status</th></tr></thead>
         <tbody>${depRows || '<tr><td colspan="5" class="muted">No cross-team dependencies.</td></tr>'}</tbody></table>`;
       el.querySelector('#back-to-org').onclick = e => { e.preventDefault(); loadOverview(); };
+      if (isRte) {
+        el.querySelector('#btn-add-pm').onclick = () => {
+          const username = prompt('Username to add to the program (they must be registered):');
+          if (!username || !username.trim()) return;
+          Auth.api(`/programs/${programId}/members`, { method: 'POST', body: JSON.stringify({ username: username.trim() }) })
+            .then(() => { Auth.toast('Member added'); openProgram(programId); })
+            .catch(err => Auth.toast(err.message));
+        };
+        el.querySelectorAll('.pm-remove').forEach(b => b.onclick = () => {
+          if (!confirm(`Remove ${b.dataset.user} from this program?`)) return;
+          Auth.api(`/programs/${programId}/members/${encodeURIComponent(b.dataset.user)}`, { method: 'DELETE' })
+            .then(() => { Auth.toast('Member removed'); openProgram(programId); })
+            .catch(err => Auth.toast(err.message));
+        });
+      }
     } catch (err) {
       el.innerHTML = `<p class="muted">🔒 ${esc(err.message)}</p>`;
     }

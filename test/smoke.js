@@ -42,6 +42,20 @@ async function req(method, path, body, headers = {}) {
   check('POST /api/login', r.status === 200 && !!token, JSON.stringify(r.data).slice(0, 120));
   const auth = { Authorization: 'Bearer ' + token };
 
+  // Grant org-manager flag to the smoke user (direct DB, like cleanup below)
+  if (CLEANUP_USER) {
+    try {
+      require('dotenv').config();
+      const { Pool } = require('pg');
+      const cs = process.env.DATABASE_URL + (process.env.DATABASE_URL.includes('?') ? '&' : '?') + 'uselibpqcompat=true';
+      const pool = new Pool({ connectionString: cs, ssl: { rejectUnauthorized: false } });
+      await pool.query('UPDATE users SET can_manage_org = TRUE WHERE username = $1', [username]);
+      await pool.end();
+    } catch (e) {
+      console.log('org grant skipped:', e.message);
+    }
+  }
+
   // 2. Create retro (sailboat)
   r = await req('POST', '/api/retros', { title: 'Smoke Retro ' + ts, template: 'sailboat' }, auth);
   const retroId = r.data?.id;

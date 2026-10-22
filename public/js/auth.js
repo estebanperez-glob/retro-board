@@ -48,6 +48,7 @@ const Auth = {
       <a href="/leaderboard.html"${active('/leaderboard.html')}>Leaderboard</a>
       <a href="/onboarding.html"${active('/onboarding.html')}>Guide</a>
       ${this.username ? `<a href="/my-commitments.html"${active('/my-commitments.html')}>My Commitments</a>` : ''}
+      ${this.username ? `<a href="/org.html"${active('/org.html')}>Organization</a>` : ''}
       ${authArea}
       <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">🌙</button>
       <button id="lang-toggle" class="lang-toggle" title="Toggle English/Español">${(localStorage.getItem('retroLang') || 'en') === 'es' ? 'EN' : 'ES'}</button>
@@ -77,6 +78,7 @@ const Auth = {
         ['a[href="/leaderboard.html"]', 'nav.leaderboard'],
         ['a[href="/onboarding.html"]', 'nav.guide'],
         ['a[href="/my-commitments.html"]', 'nav.myCommitments'],
+        ['a[href="/org.html"]', 'nav.org'],
         ['a[href="/account.html"]', 'nav.account'],
         ['#nav-logout', 'nav.logout'],
         ['#nav-login', 'nav.login'],

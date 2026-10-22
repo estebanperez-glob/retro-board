@@ -82,7 +82,7 @@ async function loadUsers() {
   el.innerHTML = `
     <table class="users-table">
       <thead><tr>
-        <th>${I18N.t('admin.username')}</th><th>${I18N.t('admin.email')}</th><th>${I18N.t('admin.master')}</th><th>${I18N.t('admin.retros')}</th><th>${I18N.t('admin.registered')}</th><th>${I18N.t('admin.actions')}</th>
+        <th>${I18N.t('admin.username')}</th><th>${I18N.t('admin.email')}</th><th>${I18N.t('admin.master')}</th><th>${I18N.t('admin.orgManager')}</th><th>${I18N.t('admin.retros')}</th><th>${I18N.t('admin.registered')}</th><th>${I18N.t('admin.actions')}</th>
       </thead>
       <tbody>
         ${users.map(u => `
@@ -90,10 +90,12 @@ async function loadUsers() {
             <td>👤 ${Auth.esc(u.username)}${u.is_master ? ' ⭐' : ''}</td>
             <td>${Auth.esc(u.email || '—')}</td>
             <td>${u.is_master ? '⭐' : ''}</td>
+            <td>${u.can_manage_org ? '✅' : '—'}</td>
             <td>${u.retros_created}</td>
             <td>${(u.created_at || '').slice(0, 10)}</td>
             <td class="users-actions">
               <button class="btn btn-small user-edit" data-id="${u.id}" data-username="${Auth.esc(u.username)}" data-email="${Auth.esc(u.email || '')}">${I18N.t('admin.edit')}</button>
+              <button class="btn btn-small org-toggle" data-id="${u.id}" data-username="${Auth.esc(u.username)}" data-value="${u.can_manage_org ? 1 : 0}">${u.can_manage_org ? I18N.t('admin.revokeOrg') : I18N.t('admin.grantOrg')}</button>
               <button class="btn btn-small btn-danger user-delete" data-id="${u.id}" data-username="${Auth.esc(u.username)}">${I18N.t('admin.delete')}</button>
             </td>
           </tr>`).join('')}
@@ -138,6 +140,16 @@ document.getElementById('users-content')?.addEventListener('click', (e) => {
   const delBtn = e.target.closest('.user-delete');
   if (delBtn) deleteUser(Number(delBtn.dataset.id), delBtn.dataset.username);
 });
+
+// Grant/revoke org-manager (can create programs and teams)
+const orgBtn = e.target.closest('.org-toggle');
+if (orgBtn) {
+  const grant = orgBtn.dataset.value !== '1';
+  if (!confirm((grant ? I18N.t('admin.grantOrgConfirm') : I18N.t('admin.revokeOrgConfirm')).replace('{name}', orgBtn.dataset.username))) return;
+  Auth.api(`/admin/users/${orgBtn.dataset.id}`, { method: 'PUT', body: JSON.stringify({ can_manage_org: grant }) })
+    .then(() => { Auth.toast(I18N.t('admin.userUpdated')); loadUsers(); })
+    .catch(err => Auth.toast(err.message));
+}
 
 // ---------- Tabs ----------
 document.querySelectorAll('.tab-btn').forEach(btn => {

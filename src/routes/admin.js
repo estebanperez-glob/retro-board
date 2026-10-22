@@ -43,7 +43,7 @@ function register(app) {
   app.get('/api/admin/users', ah(async (req, res) => {
     if (!(await requireMaster(req, res))) return;
     const rows = await db.all(`
-      SELECT u.id, u.username, u.email, u.is_master, u.plan, u.created_at,
+      SELECT u.id, u.username, u.email, u.is_master, u.can_manage_org, u.plan, u.created_at,
         (SELECT COUNT(*) FROM retros r WHERE r.created_by = u.username) AS retros_created,
         (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id) AS active_sessions
       FROM users u
@@ -57,7 +57,7 @@ function register(app) {
     if (!master) return;
     const target = await db.get('SELECT * FROM users WHERE id = $1', [req.params.id]);
     if (!target) return res.status(404).json({ error: 'User not found' });
-    const { email, is_master, password } = req.body;
+    const { email, is_master, can_manage_org, password } = req.body;
     if (email !== undefined && String(email).trim().length > 200)
       return res.status(400).json({ error: 'Email too long' });
     if (is_master === true && master.id === Number(req.params.id))
@@ -69,6 +69,9 @@ function register(app) {
     }
     if (is_master !== undefined) {
       await db.run('UPDATE users SET is_master = $1 WHERE id = $2', [!!is_master, req.params.id]);
+    }
+    if (can_manage_org !== undefined) {
+      await db.run('UPDATE users SET can_manage_org = $1 WHERE id = $2', [!!can_manage_org, req.params.id]);
     }
     if (password !== undefined) {
       await db.run('UPDATE users SET password_hash = $1 WHERE id = $2', [hashPassword(password), req.params.id]);
