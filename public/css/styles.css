@@ -1074,7 +1074,8 @@ header nav a:hover { color: var(--accent); }
   border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 12px;
   background: rgba(59, 130, 246, 0.08);
 }
-.org-help-banner a { margin-left: auto; font-weight: 600; }
+.org-help-banner a { margin-left: auto; font-weight: 600; color: var(--accent); }
+.org-help-banner a:hover { text-decoration: underline; }
 .org-help-dismiss {
   border: none; background: transparent; cursor: pointer;
   color: inherit; font-size: 0.9rem; padding: 2px 6px; border-radius: 6px;
@@ -1095,6 +1096,8 @@ header nav a:hover { color: var(--accent); }
 .org-empty-step > div { flex: 1; }
 .org-empty-step p { margin: 2px 0 0; font-size: 0.85em; }
 .org-empty-more { margin-top: 8px; }
+.org-empty-more a { color: var(--accent); font-weight: 600; }
+.org-empty-more a:hover { text-decoration: underline; }
 .org-count {
   display: inline-block; min-width: 22px; text-align: center;
   padding: 1px 8px; border-radius: 999px; font-size: 0.75em;
