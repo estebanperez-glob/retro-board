@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retro Board — Programs &amp; Teams Guide</title>
+  <meta name="description" content="How to structure your organization in Retro Board: programs, teams, program increments, roles and permissions.">
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="manifest" href="/manifest.json">
+  <script>if(localStorage.getItem("retroTheme")==="dark")document.documentElement.classList.add("dark-init");</script>
+</head>
+<body class="home-bg">
+  <a class="skip-link" href="#app" data-i18n="misc.skipToContent">Skip to content</a>
+  <header>
+    <h1>🚀 Retro Board</h1>
+    <nav></nav>
+  </header>
+  <div class="container">
+    <section class="guide-hero">
+      <div class="guide-hero-card">
+        <span class="guide-hero-emoji">🏢</span>
+        <h2 data-i18n="orgGuide.title">Programs &amp; Teams Guide 🏢</h2>
+        <p class="muted" data-i18n="orgGuide.subtitle">Structure your organization: group teams into programs, manage members, and create retros directly from your team dashboard.</p>
+        <div class="guide-hero-ctas">
+          <a class="btn" href="/org.html" data-i18n="orgGuide.cta.org">🏢 Open Organization</a>
+          <a class="btn secondary" href="/onboarding.html" data-i18n="orgGuide.cta.guide">📖 General guide</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="guide-section">
+      <h3 class="guide-section-title" data-i18n="orgGuide.concepts.title">🧩 Key concepts</h3>
+      <div class="guide-card">
+        <ul class="guide-list">
+          <li data-i18n="orgGuide.concepts.li1"><strong>Team</strong> — a group of people who run retros together (e.g. a Scrum team). Each team has a dashboard with its retros, health score, commitments and leaderboard.</li>
+          <li data-i18n="orgGuide.concepts.li2"><strong>Program</strong> — a container that groups several teams, like an Agile Release Train in SAFe. Programs enable cross-team leaderboards and dependency tracking.</li>
+          <li data-i18n="orgGuide.concepts.li3"><strong>Program Increment (PI)</strong> — a timebox for a program (typically 8–12 weeks). Retros can be assigned to a PI for planning-level tracking.</li>
+          <li data-i18n="orgGuide.concepts.li4"><strong>Standalone teams</strong> — a team does not need a program. Create teams on their own and assign them to a program later.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="guide-section">
+      <h3 class="guide-section-title" data-i18n="orgGuide.roles.title">🔐 Roles &amp; permissions</h3>
+      <div class="guide-card">
+        <table>
+          <thead><tr><th data-i18n="orgGuide.roles.role">Role</th><th data-i18n="orgGuide.roles.canDo">Can do</th></tr></thead>
+          <tbody>
+            <tr><td data-i18n="orgGuide.roles.orgManager">🛡 Org manager</td><td data-i18n="orgGuide.roles.orgManagerDo">Create programs and teams, manage everything, grant org access (from the admin panel).</td></tr>
+            <tr><td data-i18n="orgGuide.roles.rte">⭐ RTE (program)</td><td data-i18n="orgGuide.roles.rteDo">Edit/delete the program, add program members, view the program dashboard and cross-team dependencies.</td></tr>
+            <tr><td data-i18n="orgGuide.roles.lead">👥 Team lead</td><td data-i18n="orgGuide.roles.leadDo">Edit/delete the team, add/remove members, create retros for the team.</td></tr>
+            <tr><td data-i18n="orgGuide.roles.member">👤 Member</td><td data-i18n="orgGuide.roles.memberDo">See the team/program dashboards they belong to.</td></tr>
+          </tbody>
+        </table>
+        <p class="muted" data-i18n="orgGuide.roles.note">Org access is granted by a master user from the Admin panel (Grant/Revoke Org). Ask your administrator if you need to create programs or teams.</p>
+      </div>
+    </section>
+
+    <section class="guide-section">
+      <h3 class="guide-section-title" data-i18n="orgGuide.quickstart.title">🚀 Quick start (5 steps)</h3>
+      <div class="guide-steps">
+        <div class="guide-step">
+          <span class="guide-step-num">1</span>
+          <span data-i18n="orgGuide.quickstart.s1"><strong>Create the program</strong> — in Organization, click New Program and give it a name (e.g. “Payments ART”). Only org managers can create programs.</span>
+        </div>
+        <div class="guide-step">
+          <span class="guide-step-num">2</span>
+          <span data-i18n="orgGuide.quickstart.s2"><strong>Create the teams</strong> — click New Team for each squad. You can assign each team to a program right away, or leave it standalone.</span>
+        </div>
+        <div class="guide-step">
+          <span class="guide-step-num">3</span>
+          <span data-i18n="orgGuide.quickstart.s3"><strong>Add members</strong> — open a team and use Add member. The picker only shows people already in a team of the same program, keeping membership relevant. The first person you add can be promoted to lead.</span>
+        </div>
+        <div class="guide-step">
+          <span class="guide-step-num">4</span>
+          <span data-i18n="orgGuide.quickstart.s4"><strong>Create retros from the team</strong> — in the team dashboard, click New retro: pick a title, sprint and one of the 3 basic templates (Classic, Start/Stop/Continue, Mad/Sad/Glad). The retro is created and assigned to the team automatically.</span>
+        </div>
+        <div class="guide-step">
+          <span class="guide-step-num">5</span>
+          <span data-i18n="orgGuide.quickstart.s5"><strong>Follow up</strong> — check the team and program dashboards: health score, commitments, leaderboards and cross-team dependencies, all in one place.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="guide-section">
+      <h3 class="guide-section-title" data-i18n="orgGuide.manage.title">🛠 Managing programs and teams</h3>
+      <div class="guide-card">
+        <ul class="guide-list">
+          <li data-i18n="orgGuide.manage.li1"><strong>Edit</strong> — use the ✏️ Edit button on a team or program dashboard to rename it.</li>
+          <li data-i18n="orgGuide.manage.li2"><strong>Delete</strong> — the 🗑 Delete button removes the team or program but <em>never deletes retros or commitments</em>: they are kept and simply unassigned.</li>
+          <li data-i18n="orgGuide.manage.li3"><strong>Move teams</strong> — use Change program on a team dashboard to move it between programs or make it standalone.</li>
+          <li data-i18n="orgGuide.manage.li4"><strong>Program members</strong> — RTEs are added from the program dashboard. They can see all program teams and manage the program.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="guide-section">
+      <h3 class="guide-section-title" data-i18n="orgGuide.faq.title">❓ FAQ</h3>
+      <div class="guide-card">
+        <dl class="guide-faq">
+          <dt data-i18n="orgGuide.faq.q1">Who can create programs and teams?</dt>
+          <dd data-i18n="orgGuide.faq.a1">Org managers (granted by a master in the Admin panel). Team leads can manage their own teams once created.</dd>
+          <dt data-i18n="orgGuide.faq.q2">Why can't I see everyone in the member picker?</dt>
+          <dd data-i18n="orgGuide.faq.a2">By design: for program teams, the picker only offers people already in a team of that program. Standalone teams see all registered users.</dd>
+          <dt data-i18n="orgGuide.faq.q3">What happens to retros if I delete a team or program?</dt>
+          <dd data-i18n="orgGuide.faq.a3">Nothing is lost. Retros and commitments are kept; they just lose the team/program assignment and can be reassigned later.</dd>
+        </dl>
+      </div>
+    </section>
+
+    <section class="guide-cta-final">
+      <a class="btn" href="/org.html" data-i18n="orgGuide.cta.org">🏢 Open Organization</a>
+      <a class="btn secondary" href="/" data-i18n="orgGuide.cta.start">🎨 Start your first retro</a>
+    </section>
+
+    <footer class="site-footer">
+      <p><a href="/">Retro Board</a> — <span data-i18n="misc.footer">fun, actionable retrospectives for agile teams.</span></p>
+    </footer>
+  </div>
+  <script src="/js/i18n.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    Auth.renderNav();
+    if (window.I18N) window.I18N.apply();
+  </script>
+  <script>
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+  </script>
+</body>
+</html>

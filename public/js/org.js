@@ -329,6 +329,12 @@
         <input id="nr-title" type="text" maxlength="100" placeholder="${esc(t('org.retroTitlePh'))}"></label>
       <label class="org-field"><span>${t('org.sprint')}</span>
         <input id="nr-sprint" type="text" maxlength="60" placeholder="${esc(t('org.sprintPh'))}"></label>
+      <label class="org-field"><span>${t('org.template')}</span>
+        <select id="nr-template">
+          <option value="classic">${esc(I18N.t('tpl.classic.name'))}</option>
+          <option value="ssc">${esc(I18N.t('tpl.ssc.title'))}</option>
+          <option value="msg">${esc(I18N.t('tpl.msg.title'))}</option>
+        </select></label>
       <div class="org-modal-actions">
         <button class="btn secondary" id="nr-cancel">${t('org.cancel')}</button>
         <button class="btn" id="nr-save">${t('org.create')}</button>
@@ -337,7 +343,8 @@
         const title = modal.querySelector('#nr-title').value.trim();
         if (!title) { Auth.toast(t('org.nameRequired')); return; }
         const sprint = modal.querySelector('#nr-sprint').value.trim();
-        Auth.api('/retros', { method: 'POST', body: JSON.stringify({ title, sprint }) })
+        const template = modal.querySelector('#nr-template').value;
+        Auth.api('/retros', { method: 'POST', body: JSON.stringify({ title, sprint, template }) })
           .then(retro => {
             // Assign the retro to the team (best-effort; the retro is already created)
             return Auth.api(`/retros/${retro.id}/team`, { method: 'PUT', body: JSON.stringify({ team_id: teamId }) })
