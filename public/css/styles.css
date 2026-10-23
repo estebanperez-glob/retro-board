@@ -1104,3 +1104,28 @@ header nav a:hover { color: var(--accent); }
 .retro-card.open { transition: box-shadow 0.15s ease, transform 0.15s ease; }
 .retro-card.open:hover { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12); transform: translateY(-2px); }
 
+/* Header nav: Account dropdown */
+.nav-dropdown { position: relative; display: inline-block; }
+.nav-drop-btn {
+  border: none; background: transparent; cursor: pointer;
+  font: inherit; color: inherit; padding: 4px 8px; border-radius: 8px;
+}
+.nav-drop-btn:hover { background: rgba(128, 128, 128, 0.15); }
+.nav-drop-menu {
+  display: none; position: absolute; top: 100%; left: 0; z-index: 50;
+  min-width: 180px; padding: 6px;
+  background: var(--card-bg, #fff); border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+.nav-dropdown.open .nav-drop-menu { display: flex; flex-direction: column; gap: 2px; }
+.nav-drop-menu a { padding: 8px 10px; border-radius: 8px; white-space: nowrap; }
+.nav-drop-menu a:hover { background: rgba(128, 128, 128, 0.12); }
+.nav-drop-menu a.active { font-weight: 700; }
+
+/* Org dashboards: health trend colors */
+.trend-good { color: #16a34a; }
+.trend-mid { color: #d97706; }
+.trend-low { color: #dc2626; }
+
+
+

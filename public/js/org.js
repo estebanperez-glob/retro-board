@@ -6,6 +6,20 @@
   const esc = s => Auth.esc(String(s ?? ''));
   const t = k => (window.I18N ? I18N.t(k) : null) || k;
 
+  // Health score per retro row (same formula as the server's healthFromRows):
+  // participation 40% + engagement 30% + follow-through 30%, scaled 0-100.
+  function healthFromTrendRow(r) {
+    const participants = Number(r.participants || 0);
+    const cards = Number(r.cards || 0);
+    const votes = Number(r.votes || 0);
+    const total = Number(r.commitments_total || 0);
+    const done = Number(r.commitments_done || 0);
+    const participation = Math.min(100, participants * 20);
+    const engagement = Math.min(100, cards * 10 + votes * 2);
+    const followThrough = total > 0 ? Math.round((done / total) * 100) : 100;
+    return Math.round(participation * 0.4 + engagement * 0.3 + followThrough * 0.3);
+  }
+
   // ---------- Modal helpers ----------
   function closeModal() {
     document.getElementById('org-modal-backdrop')?.remove();
@@ -296,6 +310,34 @@
           <h4>${t('org.teamLeaderboard')}</h4>
           <table><thead><tr><th>#</th><th>${t('org.participant')}</th><th>${t('org.points')}</th><th>${t('org.completed')}</th></tr></thead>
           <tbody>${lbRows || `<tr><td colspan="4" class="muted">${t('org.noPoints')}</td></tr>`}</tbody></table>
+        </div>
+        <div class="org-section">
+          <h4>📈 ${t('org.healthTrend')}</h4>
+          ${d.healthTrend && d.healthTrend.length ? `
+          <table><thead><tr><th>${t('org.retro')}</th><th>${t('org.sprint')}</th><th>${t('org.healthScore')}</th><th>🧑‍🤝‍🧑</th><th>🗂</th><th>🗳</th><th>✅</th></tr></thead>
+          <tbody>${d.healthTrend.map(r => {
+            const score = healthFromTrendRow(r);
+            return `<tr>
+              <td><a href="/retro.html?id=${r.id}&from=team">${esc(r.title)}</a></td>
+              <td>${esc(r.sprint || '—')}</td>
+              <td><strong class="${score >= 70 ? 'trend-good' : score >= 40 ? 'trend-mid' : 'trend-low'}">${score}</strong></td>
+              <td>${r.participants}</td><td>${r.cards}</td><td>${r.votes}</td><td>${r.commitments_done}/${r.commitments_total}</td>
+            </tr>`;
+          }).join('')}</tbody></table>`
+          : `<p class="muted">${t('org.noTrend')}</p>`}
+        </div>
+        <div class="org-section">
+          <h4>⏰ ${t('org.overdueStats')}</h4>
+          <p>${d.overdue && d.overdue.pending > 0
+            ? `⚠️ ${d.overdue.overdue}/${d.overdue.pending} ${t('org.overdueOfPending')}`
+            : `✅ ${t('org.noOverdue')}`}</p>
+        </div>
+        <div class="org-section">
+          <h4>🧑‍🤝‍🧑 ${t('org.memberParticipation')}</h4>
+          <table><thead><tr><th>${t('org.participant')}</th><th>${t('org.retrosAttended')}</th><th>🗂 ${t('org.cardsCreated')}</th><th>🗳 ${t('org.votesCast')}</th></tr></thead>
+          <tbody>${(d.memberParticipation || []).map(m => `
+            <tr><td>👤 ${esc(m.participant_name)}</td><td>${m.retros_attended}</td><td>${m.cards_created}</td><td>${m.votes_cast}</td></tr>`).join('')
+            || `<tr><td colspan="4" class="muted">${t('org.noParticipation')}</td></tr>`}</tbody></table>
         </div>`;
       el.querySelector('#back-to-org').onclick = e => { e.preventDefault(); loadOverview(); };
       el.querySelector('#btn-add-member').onclick = () => showAddTeamMember(teamId, team.members || [], team);
@@ -497,6 +539,29 @@
           <h4>${t('org.crossTeamDeps')}</h4>
           <table><thead><tr><th>${t('org.retro')}</th><th>${t('org.commitment')}</th><th>${t('org.ownerTeam')}</th><th>${t('org.dependsOn')}</th><th>${t('org.status')}</th></tr></thead>
           <tbody>${depRows || `<tr><td colspan="5" class="muted">${t('org.noDeps')}</td></tr>`}</tbody></table>
+        </div>
+        <div class="org-section">
+          <h4>💚 ${t('org.teamHealthCompare')}</h4>
+          <table><thead><tr><th>${t('org.team')}</th><th>${t('org.healthScore')}</th></tr></thead>
+          <tbody>${(d.teamHealth || []).map(th => `
+            <tr><td><a href="#" class="team-link" data-id="${th.team_id}">👥 ${esc(th.team_name)}</a></td>
+            <td><strong class="${th.health == null ? '' : th.health >= 70 ? 'trend-good' : th.health >= 40 ? 'trend-mid' : 'trend-low'}">${th.health ?? '—'}</strong></td></tr>`).join('')
+            || `<tr><td colspan="2" class="muted">${t('org.noTeamsProgram')}</td></tr>`}</tbody></table>
+        </div>
+        <div class="org-section">
+          <h4>📈 ${t('org.programTrend')}</h4>
+          ${d.programTrend && d.programTrend.length ? `
+          <table><thead><tr><th>${t('org.retro')}</th><th>${t('org.team')}</th><th>${t('org.healthScore')}</th><th>🧑‍🤝‍🧑</th><th>🗂</th><th>🗳</th><th>✅</th></tr></thead>
+          <tbody>${d.programTrend.map(r => {
+            const score = healthFromTrendRow(r);
+            return `<tr>
+              <td><a href="/retro.html?id=${r.id}&from=team">${esc(r.title)}</a></td>
+              <td>🏷 ${esc(r.team_name)}</td>
+              <td><strong class="${score >= 70 ? 'trend-good' : score >= 40 ? 'trend-mid' : 'trend-low'}">${score}</strong></td>
+              <td>${r.participants}</td><td>${r.cards}</td><td>${r.votes}</td><td>${r.commitments_done}/${r.commitments_total}</td>
+            </tr>`;
+          }).join('')}</tbody></table>`
+          : `<p class="muted">${t('org.noTrend')}</p>`}
         </div>`;
       el.querySelector('#back-to-org').onclick = e => { e.preventDefault(); loadOverview(); };
       el.querySelectorAll('.team-link').forEach(a => a.onclick = e => { e.preventDefault(); openTeam(a.dataset.id); });

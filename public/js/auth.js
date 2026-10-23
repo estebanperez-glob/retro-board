@@ -35,20 +35,31 @@ const Auth = {
     const nav = document.querySelector('header nav');
     if (!nav) return;
     const isGuest = sessionStorage.getItem('retroGuest') === '1' && !this.username;
+    const page = location.pathname;
+    const active = p => (p === '/' ? location.pathname === '/' || location.pathname === '/index.html' : location.pathname === p) ? ' class="active"' : '';
+    const accountPages = ['/history.html', '/leaderboard.html', '/my-commitments.html', '/admin.html'];
+    const accountActive = accountPages.includes(page) ? ' class="active"' : '';
+    const accountMenu = this.username
+      ? `<div class="nav-dropdown"${accountActive ? ' data-open' : ''}>
+          <button class="nav-drop-btn" id="nav-account-btn" aria-haspopup="true" aria-expanded="false">👤 <span data-i18n="nav.account">Account</span> ▾</button>
+          <div class="nav-drop-menu">
+            <a href="/history.html"${active('/history.html')}>History</a>
+            <a href="/leaderboard.html"${active('/leaderboard.html')}>Leaderboard</a>
+            <a href="/my-commitments.html"${active('/my-commitments.html')}>My Commitments</a>
+            ${this.isMaster ? '<a href="/admin.html">Usage Stats</a>' : ''}
+          </div>
+        </div>`
+      : '';
     const authArea = this.username
-      ? `<a href="/account.html">My Account</a><span class="nav-user">👤 ${Auth.esc(this.username)}</span><a href="#" id="nav-logout">Logout</a>`
+      ? `<span class="nav-user">👤 ${Auth.esc(this.username)}</span><a href="#" id="nav-logout">Logout</a>`
       : isGuest
         ? `<span class="nav-user">${I18N.t('auth.guest')}</span><a href="#" id="nav-exit-guest">${I18N.t('auth.exitGuest')}</a><a href="#" id="nav-login">${I18N.t('auth.loginRegister')}</a>`
         : `<a href="#" id="nav-login">${I18N.t('auth.loginRegister')}</a>`;
-    const page = location.pathname;
-    const active = p => (p === '/' ? location.pathname === '/' || location.pathname === '/index.html' : location.pathname === p) ? ' class="active"' : '';
     nav.innerHTML = `
       <a href="/"${active('/')}>Home</a>
       <a href="/onboarding.html"${active('/onboarding.html')}>Guide</a>
-      <a href="/history.html"${active('/history.html')}>History</a>
-      <a href="/leaderboard.html"${active('/leaderboard.html')}>Leaderboard</a>
-      ${this.username ? `<a href="/my-commitments.html"${active('/my-commitments.html')}>My Commitments</a>` : ''}
       ${this.username ? `<a href="/org.html"${active('/org.html')}>Organization</a>` : ''}
+      ${accountMenu}
       ${authArea}
       <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">🌙</button>
       <button id="lang-toggle" class="lang-toggle" title="Toggle English/Español">${(localStorage.getItem('retroLang') || 'en') === 'es' ? 'EN' : 'ES'}</button>
@@ -79,7 +90,7 @@ const Auth = {
         ['a[href="/onboarding.html"]', 'nav.guide'],
         ['a[href="/my-commitments.html"]', 'nav.myCommitments'],
         ['a[href="/org.html"]', 'nav.org'],
-        ['a[href="/account.html"]', 'nav.account'],
+        ['#nav-account-btn span', 'nav.account'],
         ['#nav-logout', 'nav.logout'],
         ['#nav-login', 'nav.login'],
         ['#nav-exit-guest', 'nav.exitGuest'],
@@ -88,6 +99,21 @@ const Auth = {
         const el = nav.querySelector(sel);
         if (el) el.textContent = window.I18N.t(key);
       }
+      const usageLink = nav.querySelector('.nav-drop-menu a[href="/admin.html"]');
+      if (usageLink) usageLink.textContent = window.I18N.t('nav.usageStats');
+    }
+    // Account dropdown toggle
+    const accBtn = document.getElementById('nav-account-btn');
+    if (accBtn) {
+      const drop = accBtn.closest('.nav-dropdown');
+      accBtn.onclick = e => {
+        e.stopPropagation();
+        const open = drop.classList.toggle('open');
+        accBtn.setAttribute('aria-expanded', String(open));
+      };
+      document.addEventListener('click', e => {
+        if (!drop.contains(e.target)) drop.classList.remove('open');
+      });
     }
     const loginLink = document.getElementById('nav-login');
     if (loginLink) loginLink.onclick = e => { e.preventDefault(); this.openAuthModal(); };
@@ -286,13 +312,14 @@ if (window.I18N) window.I18N.apply();
     if (!Auth.token) return;
     const { user } = await Auth.api('/me');
     if (user?.is_master) {
+      Auth.isMaster = true;
       const nav = document.querySelector('header nav');
-      if (nav && !nav.querySelector('a[href="/admin.html"]')) {
-        const logout = nav.querySelector('#nav-logout');
+      const menu = nav?.querySelector('.nav-drop-menu');
+      if (menu && !menu.querySelector('a[href="/admin.html"]')) {
         const link = document.createElement('a');
         link.href = '/admin.html';
-        link.textContent = 'Usage Stats';
-        logout ? logout.before(link) : nav.appendChild(link);
+        link.textContent = window.I18N ? window.I18N.t('nav.usageStats') : 'Usage Stats';
+        menu.appendChild(link);
       }
     }
   } catch { /* nav link is cosmetic; ignore */ }

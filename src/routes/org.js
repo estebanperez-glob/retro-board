@@ -330,7 +330,29 @@ function register(app) {
       FROM points p JOIN retros r ON r.id = p.retro_id
       WHERE r.team_id = $1
       GROUP BY p.participant_name ORDER BY total_points DESC LIMIT 10`, [teamId]);
-    res.json({ team: access.team, retros, health, commitments, leaderboard });
+    // Advanced stats: health trend, overdue %, per-member participation
+    const healthTrend = await db.all(`
+      SELECT r.id, r.title, r.sprint, r.created_at,
+        (SELECT COUNT(DISTINCT p.id) FROM participants p WHERE p.retro_id = r.id) AS participants,
+        (SELECT COUNT(*) FROM cards c WHERE c.retro_id = r.id) AS cards,
+        (SELECT COUNT(*) FROM votes v WHERE v.retro_id = r.id) AS votes,
+        (SELECT COUNT(*) FROM commitments cm WHERE cm.retro_id = r.id) AS commitments_total,
+        (SELECT COUNT(*) FROM commitments cm WHERE cm.retro_id = r.id AND cm.status = 'done') AS commitments_done
+      FROM retros r WHERE r.team_id = $1 ORDER BY r.created_at ASC`, [teamId]);
+    const overdue = await db.get(`
+      SELECT COUNT(*) FILTER (WHERE cm.status != 'done' AND cm.due_date IS NOT NULL AND cm.due_date::date < CURRENT_DATE) AS overdue,
+        COUNT(*) FILTER (WHERE cm.status != 'done') AS pending
+      FROM commitments cm JOIN retros r ON r.id = cm.retro_id
+      WHERE r.team_id = $1`, [teamId]);
+    const memberParticipation = await db.all(`
+      SELECT p.name AS participant_name,
+        COUNT(DISTINCT p.retro_id) AS retros_attended,
+        (SELECT COUNT(*) FROM cards c WHERE c.retro_id IN (SELECT id FROM retros WHERE team_id = $1) AND c.author = p.name) AS cards_created,
+        (SELECT COUNT(*) FROM votes v WHERE v.retro_id IN (SELECT id FROM retros WHERE team_id = $1) AND v.voter = p.name) AS votes_cast
+      FROM participants p
+      WHERE p.retro_id IN (SELECT id FROM retros WHERE team_id = $1)
+      GROUP BY p.name ORDER BY retros_attended DESC, cards_created DESC LIMIT 15`, [teamId]);
+    res.json({ team: access.team, retros, health, commitments, leaderboard, healthTrend, overdue, memberParticipation });
   }));
 
   // ---------- Program dashboard (cross-team rollups) ----------
@@ -370,7 +392,29 @@ function register(app) {
       LEFT JOIN teams dt ON dt.id = cm.depends_on_team_id
       WHERE ot.program_id = $1 AND cm.depends_on_team_id IS NOT NULL
       ORDER BY cm.created_at DESC`, [programId]);
-    res.json({ program: access.program, teamStats, leaderboard, dependencies });
+    // Advanced stats: per-team health + program health trend
+    const teamHealth = [];
+    for (const team of teams) {
+      const rows = await db.all(`
+        SELECT r.id,
+          (SELECT COUNT(DISTINCT p.id) FROM participants p WHERE p.retro_id = r.id) AS participants,
+          (SELECT COUNT(*) FROM cards c WHERE c.retro_id = r.id) AS cards,
+          (SELECT COUNT(*) FROM votes v WHERE v.retro_id = r.id) AS votes,
+          (SELECT COUNT(*) FROM commitments cm WHERE cm.retro_id = r.id) AS commitments_total,
+          (SELECT COUNT(*) FROM commitments cm WHERE cm.retro_id = r.id AND cm.status = 'done') AS commitments_done
+        FROM retros r WHERE r.team_id = $1`, [team.id]);
+      teamHealth.push({ team_id: team.id, team_name: team.name, health: healthFromRows(rows) });
+    }
+    const programTrend = await db.all(`
+      SELECT r.id, r.title, r.created_at, r.team_id, t.name AS team_name,
+        (SELECT COUNT(DISTINCT p.id) FROM participants p WHERE p.retro_id = r.id) AS participants,
+        (SELECT COUNT(*) FROM cards c WHERE c.retro_id = r.id) AS cards,
+        (SELECT COUNT(*) FROM votes v WHERE v.retro_id = r.id) AS votes,
+        (SELECT COUNT(*) FROM commitments cm WHERE cm.retro_id = r.id) AS commitments_total,
+        (SELECT COUNT(*) FROM commitments cm WHERE cm.retro_id = r.id AND cm.status = 'done') AS commitments_done
+      FROM retros r JOIN teams t ON t.id = r.team_id
+      WHERE t.program_id = $1 ORDER BY r.created_at ASC`, [programId]);
+    res.json({ program: access.program, teamStats, leaderboard, dependencies, teamHealth, programTrend });
   }));
 
   // ---------- Program Increments ----------
