@@ -139,17 +139,16 @@ document.getElementById('users-content')?.addEventListener('click', (e) => {
   }
   const delBtn = e.target.closest('.user-delete');
   if (delBtn) deleteUser(Number(delBtn.dataset.id), delBtn.dataset.username);
+  // Grant/revoke org-manager (can create programs and teams)
+  const orgBtn = e.target.closest('.org-toggle');
+  if (orgBtn) {
+    const grant = orgBtn.dataset.value !== '1';
+    if (!confirm((grant ? I18N.t('admin.grantOrgConfirm') : I18N.t('admin.revokeOrgConfirm')).replace('{name}', orgBtn.dataset.username))) return;
+    Auth.api(`/admin/users/${orgBtn.dataset.id}`, { method: 'PUT', body: JSON.stringify({ can_manage_org: grant }) })
+      .then(() => { Auth.toast(I18N.t('admin.userUpdated')); loadUsers(); })
+      .catch(err => Auth.toast(err.message));
+  }
 });
-
-// Grant/revoke org-manager (can create programs and teams)
-const orgBtn = e.target.closest('.org-toggle');
-if (orgBtn) {
-  const grant = orgBtn.dataset.value !== '1';
-  if (!confirm((grant ? I18N.t('admin.grantOrgConfirm') : I18N.t('admin.revokeOrgConfirm')).replace('{name}', orgBtn.dataset.username))) return;
-  Auth.api(`/admin/users/${orgBtn.dataset.id}`, { method: 'PUT', body: JSON.stringify({ can_manage_org: grant }) })
-    .then(() => { Auth.toast(I18N.t('admin.userUpdated')); loadUsers(); })
-    .catch(err => Auth.toast(err.message));
-}
 
 // ---------- Tabs ----------
 document.querySelectorAll('.tab-btn').forEach(btn => {

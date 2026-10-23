@@ -996,8 +996,8 @@ header nav a:hover { color: var(--accent); }
   padding: 16px;
 }
 .org-modal {
-  background: var(--card-bg, #fff);
-  color: inherit;
+  background: var(--surface);
+  color: var(--text);
   border-radius: 14px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   width: min(440px, 92vw);
@@ -1114,18 +1114,32 @@ header nav a:hover { color: var(--accent); }
 .nav-drop-menu {
   display: none; position: absolute; top: 100%; left: 0; z-index: 50;
   min-width: 180px; padding: 6px;
-  background: var(--card-bg, #fff); border: 1px solid rgba(128, 128, 128, 0.3);
-  border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 .nav-dropdown.open .nav-drop-menu { display: flex; flex-direction: column; gap: 2px; }
-.nav-drop-menu a { padding: 8px 10px; border-radius: 8px; white-space: nowrap; }
-.nav-drop-menu a:hover { background: rgba(128, 128, 128, 0.12); }
-.nav-drop-menu a.active { font-weight: 700; }
+.nav-drop-menu a { padding: 8px 10px; border-radius: 8px; white-space: nowrap; color: var(--text); }
+.nav-drop-menu a:hover { background: var(--accent-soft); color: var(--text); }
+.nav-drop-menu a.active { font-weight: 700; color: var(--accent); }
 
 /* Org dashboards: health trend colors */
 .trend-good { color: #16a34a; }
 .trend-mid { color: #d97706; }
 .trend-low { color: #dc2626; }
+
+/* Links inside org dashboards: theme-aware, readable on light and dark */
+.org-section a,
+.org-empty a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.org-section a:hover,
+.org-empty a:hover {
+  text-decoration: underline;
+  filter: brightness(1.1);
+}
+
 
 
 
