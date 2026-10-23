@@ -387,6 +387,7 @@ async function renderRetro() {
 
   app.innerHTML = `
     <div class="retro-header">
+      ${new URLSearchParams(location.search).get('from') === 'team' ? `<p><a class="btn secondary small" href="/org.html">← ${I18N.t('org.backToOrg')}</a></p>` : ''}
       <h2>${Auth.esc(retro.title)} ${retro.status === 'closed' ? '✅' : '🟢'} ${retro.is_anonymous ? '🎭' : ''}</h2>
       <p class="muted">
         ${retro.is_anonymous ? I18N.t('board.anonMode') + ' ' : ''}

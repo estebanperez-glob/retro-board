@@ -235,7 +235,7 @@
       ]);
       const retroRows = d.retros.map(r => `
         <tr>
-          <td><a href="/retro.html?id=${r.id}">${esc(r.title)}</a></td>
+          <td><a href="/retro.html?id=${r.id}&from=team">${esc(r.title)}</a></td>
           <td>${esc(r.sprint || '—')}</td>
           <td>${r.status === 'closed' ? '✅' : '🟢'}</td>
           <td>${r.created_at?.slice(0, 10) || ''}</td>
@@ -443,7 +443,7 @@
       const isRte = d.program.role === 'rte';
       const statRows = (d.teamStats || []).map(tm => `
         <tr>
-          <td>${esc(tm.team_name)}</td>
+          <td><a href="#" class="team-link" data-id="${tm.team_id}">👥 ${esc(tm.team_name)}</a></td>
           <td>${tm.retros}</td>
           <td>${tm.participants}</td>
           <td>${tm.commitments_done}/${tm.commitments_total}</td>
@@ -499,6 +499,7 @@
           <tbody>${depRows || `<tr><td colspan="5" class="muted">${t('org.noDeps')}</td></tr>`}</tbody></table>
         </div>`;
       el.querySelector('#back-to-org').onclick = e => { e.preventDefault(); loadOverview(); };
+      el.querySelectorAll('.team-link').forEach(a => a.onclick = e => { e.preventDefault(); openTeam(a.dataset.id); });
       if (isRte) {
         el.querySelector('#btn-add-pm').onclick = () => showAddProgramMember(programId, members);
         el.querySelector('#btn-edit-program').onclick = () => showEditProgram(programId, d.program.name, d.program.description);

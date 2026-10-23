@@ -44,9 +44,9 @@ const Auth = {
     const active = p => (p === '/' ? location.pathname === '/' || location.pathname === '/index.html' : location.pathname === p) ? ' class="active"' : '';
     nav.innerHTML = `
       <a href="/"${active('/')}>Home</a>
+      <a href="/onboarding.html"${active('/onboarding.html')}>Guide</a>
       <a href="/history.html"${active('/history.html')}>History</a>
       <a href="/leaderboard.html"${active('/leaderboard.html')}>Leaderboard</a>
-      <a href="/onboarding.html"${active('/onboarding.html')}>Guide</a>
       ${this.username ? `<a href="/my-commitments.html"${active('/my-commitments.html')}>My Commitments</a>` : ''}
       ${this.username ? `<a href="/org.html"${active('/org.html')}>Organization</a>` : ''}
       ${authArea}
