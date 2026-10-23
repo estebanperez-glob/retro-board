@@ -34,6 +34,24 @@ function register(app) {
     res.status(201).json(program);
   }));
 
+  // User options for member pickers (org managers, team leads and RTEs).
+  // Returns only id + username — no emails or other PII.
+  app.get('/api/users/options', ah(async (req, res) => {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Log in required' });
+    if (!user.can_manage_org && !user.is_master) {
+      // Allow RTEs and team leads to pick members for their teams/programs
+      const lead = await db.get(`
+        SELECT 1 FROM team_members tm WHERE tm.user_id = $1 AND tm.role = 'lead'
+        UNION ALL
+        SELECT 1 FROM program_members pm WHERE pm.user_id = $1 AND pm.role = 'rte'
+        LIMIT 1`, [user.id]);
+      if (!lead) return res.status(403).json({ error: 'Not authorized to manage members' });
+    }
+    const rows = await db.all('SELECT id, username FROM users ORDER BY username');
+    res.json(rows);
+  }));
+
   // Programs the user belongs to
   app.get('/api/programs', ah(async (req, res) => {
     const user = await getUser(req);

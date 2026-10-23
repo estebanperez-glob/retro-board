@@ -1,6 +1,6 @@
 // Retro Board service worker: minimal offline shell + installability.
 // Strategy: network-first for pages/API, cache-first for static assets.
-const CACHE_NAME = 'retro-board-v4';
+const CACHE_NAME = 'retro-board-v5';
 const CORE_ASSETS = [
   '/css/styles.css',
   '/js/i18n.js',
