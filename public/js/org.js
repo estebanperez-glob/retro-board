@@ -152,7 +152,6 @@
               <div><strong>${t('org.emptyS4')}</strong><p class="muted">${t('org.emptyS4d')}</p></div>
             </div>
           </div>
-          <p class="muted org-empty-more">📖 <a href="/org-guide.html">${t('orgGuide.cta.orgGuide')}</a></p>
         </div>`;
 
       el.innerHTML = `
