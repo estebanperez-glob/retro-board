@@ -352,7 +352,7 @@ function register(app) {
       FROM participants p
       WHERE p.retro_id IN (SELECT id FROM retros WHERE team_id = $1)
       GROUP BY p.name ORDER BY retros_attended DESC, cards_created DESC LIMIT 15`, [teamId]);
-    res.json({ team: access.team, retros, health, commitments, leaderboard, healthTrend, overdue, memberParticipation });
+    res.json({ team: access.team, role: access.role, canManageOrg: !!(access.user.can_manage_org || access.user.is_master), retros, health, commitments, leaderboard, healthTrend, overdue, memberParticipation });
   }));
 
   // ---------- Program dashboard (cross-team rollups) ----------
@@ -414,7 +414,7 @@ function register(app) {
         (SELECT COUNT(*) FROM commitments cm WHERE cm.retro_id = r.id AND cm.status = 'done') AS commitments_done
       FROM retros r JOIN teams t ON t.id = r.team_id
       WHERE t.program_id = $1 ORDER BY r.created_at ASC`, [programId]);
-    res.json({ program: access.program, teamStats, leaderboard, dependencies, teamHealth, programTrend });
+    res.json({ program: access.program, role: access.role, canManageOrg: !!(access.user.can_manage_org || access.user.is_master), teamStats, leaderboard, dependencies, teamHealth, programTrend });
   }));
 
   // ---------- Program Increments ----------

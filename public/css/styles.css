@@ -1056,6 +1056,19 @@ header nav a:hover { color: var(--accent); }
   gap: 8px; flex-wrap: wrap; margin-bottom: 8px;
 }
 .org-section-head h4 { margin: 0; }
+/* Program/team detail header: back link, title row with actions */
+.org-detail-head { margin-bottom: 18px; }
+.org-back-link {
+  display: inline-block; margin-bottom: 12px;
+  color: var(--accent); font-weight: 600; text-decoration: none;
+}
+.org-back-link:hover { text-decoration: underline; }
+.org-detail-title {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.org-detail-title h3 { margin: 0; }
+.org-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .org-stats-row {
   display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
   margin: 12px 0 4px;

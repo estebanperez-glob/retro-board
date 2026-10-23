@@ -266,12 +266,14 @@
         ? esc((programs.find(p => p.id === team.program_id) || {}).name || '')
         : '';
       el.innerHTML = `
-        <p><a class="btn secondary small" href="#" id="back-to-org">← ${t('org.backToOrg')}</a></p>
-        <div class="org-section-head">
-          <h3>👥 ${esc(d.team.name)}</h3>
-          <div>
-            <button class="btn small secondary" id="btn-edit-team">✏️ ${t('org.edit')}</button>
-            <button class="btn small danger" id="btn-delete-team">🗑 ${t('org.delete')}</button>
+        <div class="org-detail-head">
+          <a class="org-back-link" href="#" id="back-to-org">← ${t('org.backToOrg')}</a>
+          <div class="org-detail-title">
+            <h3>👥 ${esc(d.team.name)}</h3>
+            <div class="org-detail-actions">
+              <button class="btn small secondary" id="btn-edit-team">✏️ ${t('org.edit')}</button>
+              <button class="btn small danger" id="btn-delete-team">🗑 ${t('org.delete')}</button>
+            </div>
           </div>
         </div>
         <div class="org-stats-row">
@@ -482,7 +484,8 @@
         Auth.api(`/programs/${programId}/dashboard`),
         Auth.api(`/programs/${programId}/members`),
       ]);
-      const isRte = d.program.role === 'rte';
+      const isRte = d.role === 'rte' || d.program.role === 'rte';
+      const canManage = isRte || d.canManageOrg;
       const statRows = (d.teamStats || []).map(tm => `
         <tr>
           <td><a href="#" class="team-link" data-id="${tm.team_id}">👥 ${esc(tm.team_name)}</a></td>
@@ -508,14 +511,16 @@
           <td>${isRte ? `<button class="btn small secondary pm-remove" data-user="${esc(m.username)}">${t('org.remove')}</button>` : ''}</td>
         </tr>`).join('');
       el.innerHTML = `
-        <p><a class="btn secondary small" href="#" id="back-to-org">← ${t('org.backToOrg')}</a></p>
-        <div class="org-section-head">
-          <h3>📋 ${esc(d.program.name)}</h3>
-          ${isRte ? `
-          <div>
-            <button class="btn small secondary" id="btn-edit-program">✏️ ${t('org.edit')}</button>
-            <button class="btn small danger" id="btn-delete-program">🗑 ${t('org.delete')}</button>
-          </div>` : ''}
+        <div class="org-detail-head">
+          <a class="org-back-link" href="#" id="back-to-org">← ${t('org.backToOrg')}</a>
+          <div class="org-detail-title">
+            <h3>📋 ${esc(d.program.name)}</h3>
+            ${canManage ? `
+            <div class="org-detail-actions">
+              <button class="btn small secondary" id="btn-edit-program">✏️ ${t('org.edit')}</button>
+              <button class="btn small danger" id="btn-delete-program">🗑 ${t('org.delete')}</button>
+            </div>` : ''}
+          </div>
         </div>
         <div class="org-section">
           <div class="org-section-head">
