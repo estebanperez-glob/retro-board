@@ -632,6 +632,7 @@ header nav a:hover { color: var(--accent); }
   padding: 8px 20px; cursor: pointer; font-weight: 600; color: var(--muted);
 }
 .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.tab-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .users-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .users-table th, .users-table td {
   text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border);
@@ -1146,3 +1147,10 @@ header nav a:hover { color: var(--accent); }
 
 
 
+/* Mobile responsiveness: tables scroll horizontally, filters stack */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+@media (max-width: 720px) {
+  .history-filters { flex-direction: column; align-items: stretch; }
+  .history-filters input, .history-filters select { width: 100%; }
+  th, td { padding: 8px 10px; }
+}

@@ -64,7 +64,7 @@
       <div class="org-user-list" id="${id}-list"></div>`;
   }
 
-  function mountUserPicker(modal, id, users, onPick) {
+  function mountUserPicker(modal, id, users, onPick, emptyContext) {
     const search = modal.querySelector(`#${id}-search`);
     const list = modal.querySelector(`#${id}-list`);
     let selected = null;
@@ -73,7 +73,7 @@
       const matches = users.filter(u => !q || u.username.toLowerCase().includes(q)).slice(0, 8);
       list.innerHTML = matches.length
         ? matches.map(u => `<button type="button" class="org-user-item" data-id="${u.id}" data-username="${esc(u.username)}">👤 ${esc(u.username)}</button>`).join('')
-        : `<div class="org-user-empty">${esc(t('org.noUsersFound'))}</div>`;
+        : `<div class="org-user-empty">${esc(q ? t('org.noUsersFound') : (emptyContext || t('org.noUsersFound')))}</div>`;
       list.querySelectorAll('.org-user-item').forEach(b => b.onclick = () => {
         selected = { id: Number(b.dataset.id), username: b.dataset.username };
         search.value = selected.username;
@@ -380,7 +380,7 @@
         Auth.api(`/teams/${teamId}/members`, { method: 'POST', body: JSON.stringify({ username: picked.username }) })
           .then(() => { closeModal(); Auth.toast(t('org.memberAdded')); openTeam(teamId); })
           .catch(err => { Auth.toast(err.message); });
-      });
+      }, t('org.noUsersInTeam'));
       modal.querySelector('#tm-cancel').onclick = closeModal;
     });
   }
@@ -633,7 +633,7 @@
         Auth.api(`/programs/${programId}/members`, { method: 'POST', body: JSON.stringify({ username: picked.username, role }) })
           .then(() => { closeModal(); Auth.toast(t('org.memberAdded')); openProgram(programId); })
           .catch(err => Auth.toast(err.message));
-      });
+      }, t('org.noUsersInProgram'));
       modal.querySelector('#pm-cancel').onclick = closeModal;
     });
   }

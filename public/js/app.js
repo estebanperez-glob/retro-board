@@ -766,12 +766,22 @@ function openEditCardModal(cardId, currentContent) {
   // Set the value via JS (not interpolation) — avoids double-escaping and XSS
   overlay.querySelector('#card-content').value = currentContent ?? '';
   document.body.appendChild(overlay);
+  overlay.querySelector('#card-content').focus();
   overlay.querySelector('#card-cancel').onclick = () => overlay.remove();
   overlay.querySelector('#card-save').onclick = async () => {
+    const saveBtn = overlay.querySelector('#card-save');
     const content = overlay.querySelector('#card-content').value.trim();
     if (!content) return toast(I18N.t('board.contentRequired'), 'points');
-    await Auth.api(`/cards/${cardId}`, { method: 'PUT', body: JSON.stringify({ content }) });
-    overlay.remove();
+    saveBtn.disabled = true;
+    saveBtn.textContent = I18N.t('common.saving');
+    try {
+      await Auth.api(`/cards/${cardId}`, { method: 'PUT', body: JSON.stringify({ content }) });
+      overlay.remove();
+    } catch (err) {
+      toast(err.message, 'points');
+      saveBtn.disabled = false;
+      saveBtn.textContent = I18N.t('common.save');
+    }
   };
 }
 
@@ -881,18 +891,28 @@ function openCommitmentModal(existing = null) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  overlay.querySelector('#cm-desc').focus();
   overlay.querySelector('#cm-cancel').onclick = () => overlay.remove();
   overlay.querySelector('#cm-save').onclick = async () => {
+    const saveBtn = overlay.querySelector('#cm-save');
     const description = overlay.querySelector('#cm-desc').value.trim();
     const assignee = overlay.querySelector('#cm-assignee').value.trim();
     const due_date = overlay.querySelector('#cm-due').value;
     if (!description || !assignee) return toast(I18N.t('board.descAssigneeRequired'), 'points');
-    if (existing) {
-      await Auth.api(`/commitments/${existing.id}`, { method: 'PUT', body: JSON.stringify({ description, assignee, due_date }) });
-    } else {
-      await Auth.api(`/retros/${currentRetroId}/commitments`, { method: 'POST', body: JSON.stringify({ description, assignee, due_date }) });
+    saveBtn.disabled = true;
+    saveBtn.textContent = I18N.t('common.saving');
+    try {
+      if (existing) {
+        await Auth.api(`/commitments/${existing.id}`, { method: 'PUT', body: JSON.stringify({ description, assignee, due_date }) });
+      } else {
+        await Auth.api(`/retros/${currentRetroId}/commitments`, { method: 'POST', body: JSON.stringify({ description, assignee, due_date }) });
+      }
+      overlay.remove();
+    } catch (err) {
+      toast(err.message, 'points');
+      saveBtn.disabled = false;
+      saveBtn.textContent = existing ? I18N.t('common.save') : I18N.t('board.create');
     }
-    overlay.remove();
   };
 }
 

@@ -18,7 +18,12 @@ async function loadMyCommitments() {
     return;
   }
   if (!items.length) {
-    list.innerHTML = `<p class="muted">${I18N.t('mc.empty')}</p>`;
+    list.innerHTML = `
+      <div class="auth-required">
+        <p>🎯 ${I18N.t('mc.empty')}</p>
+        <p class="muted">${I18N.t('mc.emptyHint')}</p>
+        <a class="btn" href="/">${I18N.t('mc.goToRetros')}</a>
+      </div>`;
     return;
   }
   const open = items.filter(i => i.status !== 'done');

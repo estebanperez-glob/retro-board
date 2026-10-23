@@ -220,12 +220,17 @@ const Auth = {
       const username = overlay.querySelector('#auth-user').value.trim();
       const password = overlay.querySelector('#auth-pass').value;
       if (!username || !password) return Auth.toast(I18N.t('auth.userPassRequired'));
+      const goBtn = overlay.querySelector('#auth-go');
+      goBtn.disabled = true;
+      goBtn.textContent = I18N.t('common.saving');
       try {
         let body = { username, password };
         if (!isLogin) {
           const security_question = overlay.querySelector('#auth-secq').value.trim();
           const security_answer = overlay.querySelector('#auth-seca').value.trim();
           if (!security_question || !security_answer) {
+            goBtn.disabled = false;
+            goBtn.textContent = isLogin ? I18N.t('auth.loginBtn') : I18N.t('auth.register');
             return Auth.toast(I18N.t('auth.secQARRequired'));
           }
           body = { ...body, security_question, security_answer };
@@ -240,6 +245,8 @@ const Auth = {
         location.reload();
       } catch (err) {
         Auth.toast(err.message);
+        goBtn.disabled = false;
+        goBtn.textContent = isLogin ? I18N.t('auth.loginBtn') : I18N.t('auth.register');
       }
     };
     overlay.querySelector('#auth-go').onclick = submit;

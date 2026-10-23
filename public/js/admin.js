@@ -80,6 +80,7 @@ async function loadUsers() {
     return;
   }
   el.innerHTML = `
+    <div class="table-scroll">
     <table class="users-table">
       <thead><tr>
         <th>${I18N.t('admin.username')}</th><th>${I18N.t('admin.email')}</th><th>${I18N.t('admin.master')}</th><th>${I18N.t('admin.orgManager')}</th><th>${I18N.t('admin.retros')}</th><th>${I18N.t('admin.registered')}</th><th>${I18N.t('admin.actions')}</th>
@@ -94,39 +95,94 @@ async function loadUsers() {
             <td>${u.retros_created}</td>
             <td>${(u.created_at || '').slice(0, 10)}</td>
             <td class="users-actions">
-              <button class="btn btn-small user-edit" data-id="${u.id}" data-username="${Auth.esc(u.username)}" data-email="${Auth.esc(u.email || '')}">${I18N.t('admin.edit')}</button>
-              <button class="btn btn-small org-toggle" data-id="${u.id}" data-username="${Auth.esc(u.username)}" data-value="${u.can_manage_org ? 1 : 0}">${u.can_manage_org ? I18N.t('admin.revokeOrg') : I18N.t('admin.grantOrg')}</button>
-              <button class="btn btn-small btn-danger user-delete" data-id="${u.id}" data-username="${Auth.esc(u.username)}">${I18N.t('admin.delete')}</button>
+              <button class="btn btn-small user-edit" data-id="${u.id}" data-username="${Auth.esc(u.username)}" data-email="${Auth.esc(u.email || '')}" aria-label="${I18N.t('admin.edit')} ${Auth.esc(u.username)}">${I18N.t('admin.edit')}</button>
+              <button class="btn btn-small org-toggle" data-id="${u.id}" data-username="${Auth.esc(u.username)}" data-value="${u.can_manage_org ? 1 : 0}" aria-label="${u.can_manage_org ? I18N.t('admin.revokeOrg') : I18N.t('admin.grantOrg')} — ${Auth.esc(u.username)}">${u.can_manage_org ? I18N.t('admin.revokeOrg') : I18N.t('admin.grantOrg')}</button>
+              <button class="btn btn-small btn-danger user-delete" data-id="${u.id}" data-username="${Auth.esc(u.username)}" aria-label="${I18N.t('admin.delete')} ${Auth.esc(u.username)}">${I18N.t('admin.delete')}</button>
             </td>
           </tr>`).join('')}
       </tbody>
-    </table>`;
+    </table>
+    </div>`;
 }
 
 function editUser(id, username, email) {
-  const newPassword = prompt(I18N.t('admin.newPassPrompt').replace('{name}', username));
-  if (newPassword === null) return;
-  if (newPassword && newPassword.length < 8) return alert(I18N.t('admin.passMinLength'));
-  const newEmail = prompt(I18N.t('admin.emailPrompt').replace('{name}', username), email || '');
-  if (newEmail === null) return;
-  const body = {};
-  if (newPassword) body.password = newPassword;
-  if (newEmail !== email) body.email = newEmail.trim();
-  if (!Object.keys(body).length) return;
-  Auth.api(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(body) })
-    .then(() => { Auth.toast(I18N.t('admin.userUpdated')); loadUsers(); })
-    .catch(err => Auth.toast(err.message));
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3>${I18N.t('admin.editUserTitle').replace('{name}', username)}</h3>
+      <div class="form-group">
+        <label>${I18N.t('admin.emailPrompt').replace('{name}', username)}</label>
+        <input id="au-email" type="email" value="${Auth.esc(email || '')}">
+      </div>
+      <div class="form-group">
+        <label>${I18N.t('admin.newPassPrompt').replace('{name}', username)}</label>
+        <input id="au-pass" type="password" autocomplete="new-password">
+      </div>
+      <div class="modal-actions">
+        <button class="btn secondary" id="au-cancel">${I18N.t('common.cancel')}</button>
+        <button class="btn" id="au-save">${I18N.t('common.save')}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#au-email').focus();
+  overlay.querySelector('#au-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#au-save').onclick = async () => {
+    const saveBtn = overlay.querySelector('#au-save');
+    const newEmail = overlay.querySelector('#au-email').value.trim();
+    const newPassword = overlay.querySelector('#au-pass').value;
+    if (newPassword && newPassword.length < 8) return Auth.toast(I18N.t('admin.passMinLength'));
+    const body = {};
+    if (newPassword) body.password = newPassword;
+    if (newEmail !== (email || '')) body.email = newEmail;
+    if (!Object.keys(body).length) return overlay.remove();
+    saveBtn.disabled = true;
+    saveBtn.textContent = I18N.t('common.saving');
+    try {
+      await Auth.api(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+      overlay.remove();
+      Auth.toast(I18N.t('admin.userUpdated'));
+      loadUsers();
+    } catch (err) {
+      Auth.toast(err.message);
+      saveBtn.disabled = false;
+      saveBtn.textContent = I18N.t('common.save');
+    }
+  };
+}
+
+function confirmModal(message, onConfirm) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <p>${message}</p>
+      <div class="modal-actions">
+        <button class="btn secondary" id="cf-cancel">${I18N.t('common.cancel')}</button>
+        <button class="btn danger" id="cf-go">${I18N.t('common.delete')}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#cf-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#cf-go').onclick = async () => {
+    const goBtn = overlay.querySelector('#cf-go');
+    goBtn.disabled = true;
+    try {
+      await onConfirm();
+      overlay.remove();
+    } catch (err) {
+      Auth.toast(err.message);
+      goBtn.disabled = false;
+    }
+  };
 }
 
 async function deleteUser(id, username) {
-  if (!confirm(I18N.t('admin.deleteUserConfirm').replace('{name}', username))) return;
-  try {
+  confirmModal(I18N.t('admin.deleteUserConfirm').replace('{name}', username), async () => {
     await Auth.api(`/admin/users/${id}`, { method: 'DELETE' });
     Auth.toast(I18N.t('admin.userDeleted'));
     loadUsers();
-  } catch (err) {
-    Auth.toast(err.message);
-  }
+  });
 }
 
 // Event delegation for user actions (avoids inline onclick — XSS-safe with
@@ -143,10 +199,14 @@ document.getElementById('users-content')?.addEventListener('click', (e) => {
   const orgBtn = e.target.closest('.org-toggle');
   if (orgBtn) {
     const grant = orgBtn.dataset.value !== '1';
-    if (!confirm((grant ? I18N.t('admin.grantOrgConfirm') : I18N.t('admin.revokeOrgConfirm')).replace('{name}', orgBtn.dataset.username))) return;
-    Auth.api(`/admin/users/${orgBtn.dataset.id}`, { method: 'PUT', body: JSON.stringify({ can_manage_org: grant }) })
-      .then(() => { Auth.toast(I18N.t('admin.userUpdated')); loadUsers(); })
-      .catch(err => Auth.toast(err.message));
+    confirmModal(
+      (grant ? I18N.t('admin.grantOrgConfirm') : I18N.t('admin.revokeOrgConfirm')).replace('{name}', orgBtn.dataset.username),
+      async () => {
+        await Auth.api(`/admin/users/${orgBtn.dataset.id}`, { method: 'PUT', body: JSON.stringify({ can_manage_org: grant }) });
+        Auth.toast(I18N.t('admin.userUpdated'));
+        loadUsers();
+      }
+    );
   }
 });
 
