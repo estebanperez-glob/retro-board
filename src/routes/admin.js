@@ -62,6 +62,8 @@ function register(app) {
       return res.status(400).json({ error: 'Email too long' });
     if (is_master === true && master.id === Number(req.params.id))
       return res.status(400).json({ error: 'You are already master' });
+    if (is_master === false && master.id === Number(req.params.id))
+      return res.status(400).json({ error: 'You cannot revoke your own master flag' });
     if (password !== undefined && (typeof password !== 'string' || password.length < 8))
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     if (email !== undefined) {
