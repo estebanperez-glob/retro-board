@@ -36,9 +36,11 @@
 
   // ---------- User picker (searchable dropdown) ----------
   let userOptionsCache = null;
-  async function getUserOptions() {
-    if (!userOptionsCache) userOptionsCache = Auth.api('/users/options');
-    return (await userOptionsCache).slice();
+  async function getUserOptions(scope) {
+    // scope: { team_id } | { program_id } | undefined
+    const query = scope?.team_id ? `?team_id=${scope.team_id}`
+      : scope?.program_id ? `?program_id=${scope.program_id}` : '';
+    return Auth.api(`/users/options${query}`);
   }
 
   function userPickerHtml(id, placeholder) {
@@ -207,7 +209,13 @@
         : '';
       el.innerHTML = `
         <p><a class="btn secondary small" href="#" id="back-to-org">← ${t('org.backToOrg')}</a></p>
-        <h3>👥 ${esc(d.team.name)}</h3>
+        <div class="org-section-head">
+          <h3>👥 ${esc(d.team.name)}</h3>
+          <div>
+            <button class="btn small secondary" id="btn-edit-team">✏️ ${t('org.edit')}</button>
+            <button class="btn small danger" id="btn-delete-team">🗑 ${t('org.delete')}</button>
+          </div>
+        </div>
         <div class="org-stats-row">
           <div class="health-card">
             <span class="health-score ${d.health >= 70 ? 'good' : d.health >= 40 ? 'mid' : d.health != null ? 'low' : ''}">${d.health ?? '—'}</span>
@@ -233,7 +241,10 @@
           <p>${team.program_id ? `📋 ${programName || t('org.assignedProgram')}` : t('org.standaloneTeam')}</p>
         </div>
         <div class="org-section">
-          <h4>${t('org.retrosHeading')}</h4>
+          <div class="org-section-head">
+            <h4>${t('org.retrosHeading')}</h4>
+            <button class="btn small" id="btn-new-retro">➕ ${t('org.newRetro')}</button>
+          </div>
           <table><thead><tr><th>${t('org.title')}</th><th>${t('org.sprint')}</th><th>${t('org.status')}</th><th>${t('org.created')}</th></tr></thead>
           <tbody>${retroRows || `<tr><td colspan="4" class="muted">${t('org.noRetrosTeam')}</td></tr>`}</tbody></table>
         </div>
@@ -243,7 +254,7 @@
           <tbody>${lbRows || `<tr><td colspan="4" class="muted">${t('org.noPoints')}</td></tr>`}</tbody></table>
         </div>`;
       el.querySelector('#back-to-org').onclick = e => { e.preventDefault(); loadOverview(); };
-      el.querySelector('#btn-add-member').onclick = () => showAddTeamMember(teamId, team.members || []);
+      el.querySelector('#btn-add-member').onclick = () => showAddTeamMember(teamId, team.members || [], team);
       el.querySelectorAll('.member-remove').forEach(b => b.onclick = () => {
         if (!confirm(`${t('org.removeMemberConfirm')} ${b.dataset.user}?`)) return;
         Auth.api(`/teams/${teamId}/members/${encodeURIComponent(b.dataset.user)}`, { method: 'DELETE' })
@@ -251,15 +262,25 @@
           .catch(err => Auth.toast(err.message));
       });
       el.querySelector('#btn-assign-program').onclick = () => showAssignProgram(teamId, team.program_id, programs);
+      el.querySelector('#btn-edit-team').onclick = () => showEditTeam(teamId, d.team.name);
+      el.querySelector('#btn-delete-team').onclick = () => {
+        if (!confirm(`${t('org.deleteTeamConfirm')} "${d.team.name}"?`)) return;
+        Auth.api(`/teams/${teamId}`, { method: 'DELETE' })
+          .then(() => { Auth.toast(t('org.teamDeleted')); loadOverview(); })
+          .catch(err => Auth.toast(err.message));
+      };
+      el.querySelector('#btn-new-retro').onclick = () => showNewRetro(teamId, team.program_id, programs, d.team.name);
     } catch (err) {
       el.innerHTML = `<p class="muted">🔒 ${esc(err.message)}</p>`;
     }
   }
 
-  // Add team member: modal with searchable user dropdown
-  async function showAddTeamMember(teamId, currentMembers) {
+  // Add team member: modal with searchable user dropdown.
+  // Scope: if the team belongs to a program, only offer users already in a
+  // team of that program; standalone teams get the full user list.
+  async function showAddTeamMember(teamId, currentMembers, team) {
     let users;
-    try { users = await getUserOptions(); }
+    try { users = await getUserOptions(team?.program_id ? { team_id: teamId } : undefined); }
     catch (err) { Auth.toast(err.message); return; }
     const existing = new Set(currentMembers.map(m => m.username));
     const available = users.filter(u => !existing.has(u.username));
@@ -275,6 +296,66 @@
           .catch(err => { Auth.toast(err.message); });
       });
       modal.querySelector('#tm-cancel').onclick = closeModal;
+    });
+  }
+
+  // Edit team name: modal
+  function showEditTeam(teamId, currentName) {
+    openModal('✏️ ' + t('org.editTeam'), `
+      <label class="org-field"><span>${t('org.teamName')}</span>
+        <input id="et-name" type="text" maxlength="60" value="${esc(currentName)}"></label>
+      <div class="org-modal-actions">
+        <button class="btn secondary" id="et-cancel">${t('org.cancel')}</button>
+        <button class="btn" id="et-save">${t('org.save')}</button>
+      </div>`, modal => {
+      modal.querySelector('#et-save').onclick = () => {
+        const name = modal.querySelector('#et-name').value.trim();
+        if (!name) { Auth.toast(t('org.nameRequired')); return; }
+        Auth.api(`/teams/${teamId}`, { method: 'PUT', body: JSON.stringify({ name }) })
+          .then(() => { closeModal(); Auth.toast(t('org.teamUpdated')); openTeam(teamId); })
+          .catch(err => Auth.toast(err.message));
+      };
+      modal.querySelector('#et-cancel').onclick = closeModal;
+    });
+  }
+
+  // Create a retro from the Organization page, assigned to this team
+  // (and to the program's current PI if there is one).
+  function showNewRetro(teamId, programId, programs, teamName) {
+    const program = programs.find(p => p.id === programId);
+    openModal('➕ ' + t('org.newRetro'), `
+      <p class="muted">${t('org.newRetroFor')} <strong>👥 ${esc(program ? program.name + ' · ' : '')}${esc(teamName)}</strong></p>
+      <label class="org-field"><span>${t('org.retroTitle')}</span>
+        <input id="nr-title" type="text" maxlength="100" placeholder="${esc(t('org.retroTitlePh'))}"></label>
+      <label class="org-field"><span>${t('org.sprint')}</span>
+        <input id="nr-sprint" type="text" maxlength="60" placeholder="${esc(t('org.sprintPh'))}"></label>
+      <div class="org-modal-actions">
+        <button class="btn secondary" id="nr-cancel">${t('org.cancel')}</button>
+        <button class="btn" id="nr-save">${t('org.create')}</button>
+      </div>`, modal => {
+      modal.querySelector('#nr-save').onclick = () => {
+        const title = modal.querySelector('#nr-title').value.trim();
+        if (!title) { Auth.toast(t('org.nameRequired')); return; }
+        const sprint = modal.querySelector('#nr-sprint').value.trim();
+        Auth.api('/retros', { method: 'POST', body: JSON.stringify({ title, sprint }) })
+          .then(retro => {
+            // Assign the retro to the team (best-effort; the retro is already created)
+            return Auth.api(`/retros/${retro.id}/team`, { method: 'PUT', body: JSON.stringify({ team_id: teamId }) })
+              .catch(() => {})
+              .then(() => retro);
+          })
+          .then(retro => {
+            // If the team's program has a current PI, assign it too (best-effort)
+            const piId = program?.current_pi_id || program?.active_pi_id;
+            if (!piId) { closeModal(); Auth.toast(t('org.retroCreated')); openTeam(teamId); return; }
+            return Auth.api(`/retros/${retro.id}/pi`, { method: 'PUT', body: JSON.stringify({ pi_id: piId }) })
+              .catch(() => {})
+              .then(() => { closeModal(); Auth.toast(t('org.retroCreated')); openTeam(teamId); });
+          })
+          .catch(err => Auth.toast(err.message));
+      };
+      modal.querySelector('#nr-cancel').onclick = closeModal;
+      modal.querySelector('#nr-title').focus();
     });
   }
 
@@ -335,7 +416,14 @@
         </tr>`).join('');
       el.innerHTML = `
         <p><a class="btn secondary small" href="#" id="back-to-org">← ${t('org.backToOrg')}</a></p>
-        <h3>📋 ${esc(d.program.name)}</h3>
+        <div class="org-section-head">
+          <h3>📋 ${esc(d.program.name)}</h3>
+          ${isRte ? `
+          <div>
+            <button class="btn small secondary" id="btn-edit-program">✏️ ${t('org.edit')}</button>
+            <button class="btn small danger" id="btn-delete-program">🗑 ${t('org.delete')}</button>
+          </div>` : ''}
+        </div>
         <div class="org-section">
           <div class="org-section-head">
             <h4>${t('org.programMembers')}</h4>
@@ -362,6 +450,13 @@
       el.querySelector('#back-to-org').onclick = e => { e.preventDefault(); loadOverview(); };
       if (isRte) {
         el.querySelector('#btn-add-pm').onclick = () => showAddProgramMember(programId, members);
+        el.querySelector('#btn-edit-program').onclick = () => showEditProgram(programId, d.program.name, d.program.description);
+        el.querySelector('#btn-delete-program').onclick = () => {
+          if (!confirm(`${t('org.deleteProgramConfirm')} "${d.program.name}"?`)) return;
+          Auth.api(`/programs/${programId}`, { method: 'DELETE' })
+            .then(() => { Auth.toast(t('org.programDeleted')); loadOverview(); })
+            .catch(err => Auth.toast(err.message));
+        };
         el.querySelectorAll('.pm-remove').forEach(b => b.onclick = () => {
           if (!confirm(`${t('org.removeMemberConfirm')} ${b.dataset.user}?`)) return;
           Auth.api(`/programs/${programId}/members/${encodeURIComponent(b.dataset.user)}`, { method: 'DELETE' })
@@ -374,10 +469,34 @@
     }
   }
 
-  // Add program member: modal with searchable user dropdown + role select
+  // Edit program: modal
+  function showEditProgram(programId, currentName, currentDescription) {
+    openModal('✏️ ' + t('org.editProgram'), `
+      <label class="org-field"><span>${t('org.programName')}</span>
+        <input id="ep-name" type="text" maxlength="60" value="${esc(currentName)}"></label>
+      <label class="org-field"><span>${t('org.programDesc')}</span>
+        <input id="ep-desc" type="text" maxlength="200" value="${esc(currentDescription || '')}"></label>
+      <div class="org-modal-actions">
+        <button class="btn secondary" id="ep-cancel">${t('org.cancel')}</button>
+        <button class="btn" id="ep-save">${t('org.save')}</button>
+      </div>`, modal => {
+      modal.querySelector('#ep-save').onclick = () => {
+        const name = modal.querySelector('#ep-name').value.trim();
+        if (!name) { Auth.toast(t('org.nameRequired')); return; }
+        const description = modal.querySelector('#ep-desc').value.trim();
+        Auth.api(`/programs/${programId}`, { method: 'PUT', body: JSON.stringify({ name, description }) })
+          .then(() => { closeModal(); Auth.toast(t('org.programUpdated')); openProgram(programId); })
+          .catch(err => Auth.toast(err.message));
+      };
+      modal.querySelector('#ep-cancel').onclick = closeModal;
+    });
+  }
+
+  // Add program member: modal with searchable user dropdown + role select.
+  // Scope: only users already in a team of this program.
   async function showAddProgramMember(programId, currentMembers) {
     let users;
-    try { users = await getUserOptions(); }
+    try { users = await getUserOptions({ program_id: programId }); }
     catch (err) { Auth.toast(err.message); return; }
     const existing = new Set(currentMembers.map(m => m.username));
     const available = users.filter(u => !existing.has(u.username));

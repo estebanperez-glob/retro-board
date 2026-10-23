@@ -35,7 +35,9 @@ function register(app) {
   }));
 
   // User options for member pickers (org managers, team leads and RTEs).
-  // Returns only id + username — no emails or other PII.
+  // Scope: ?team_id=N -> users of that team's program (or all users if the
+  // team is standalone); ?program_id=N -> users in any team of the program;
+  // no filter -> all users. Returns only id + username — no PII.
   app.get('/api/users/options', ah(async (req, res) => {
     const user = await getUser(req);
     if (!user) return res.status(401).json({ error: 'Log in required' });
@@ -48,7 +50,31 @@ function register(app) {
         LIMIT 1`, [user.id]);
       if (!lead) return res.status(403).json({ error: 'Not authorized to manage members' });
     }
-    const rows = await db.all('SELECT id, username FROM users ORDER BY username');
+    let rows;
+    if (req.query.team_id) {
+      const team = await db.get('SELECT id, program_id FROM teams WHERE id = $1', [Number(req.query.team_id)]);
+      if (!team) return res.status(404).json({ error: 'Team not found' });
+      if (team.program_id) {
+        // Users in any team of the program (the natural pool for a program team)
+        rows = await db.all(`
+          SELECT DISTINCT u.id, u.username FROM users u
+          JOIN team_members tm ON tm.username = u.username
+          JOIN teams t2 ON t2.id = tm.team_id
+          WHERE t2.program_id = $1
+          ORDER BY u.username`, [team.program_id]);
+      } else {
+        rows = await db.all('SELECT id, username FROM users ORDER BY username');
+      }
+    } else if (req.query.program_id) {
+      rows = await db.all(`
+        SELECT DISTINCT u.id, u.username FROM users u
+        JOIN team_members tm ON tm.username = u.username
+        JOIN teams t2 ON t2.id = tm.team_id
+        WHERE t2.program_id = $1
+        ORDER BY u.username`, [Number(req.query.program_id)]);
+    } else {
+      rows = await db.all('SELECT id, username FROM users ORDER BY username');
+    }
     res.json(rows);
   }));
 
@@ -63,6 +89,36 @@ function register(app) {
       JOIN program_members pm ON pm.program_id = p.id AND pm.user_id = $1
       ORDER BY p.created_at DESC`, [user.id]);
     res.json(rows);
+  }));
+
+  // Update a program (RTE or org manager)
+  app.put('/api/programs/:id', ah(async (req, res) => {
+    const access = await requireProgramAccess(req, res, req.params.id);
+    if (!access) return;
+    const user = await getUser(req);
+    const isManager = user.can_manage_org || user.is_master;
+    if (access.role !== 'rte' && !isManager) return res.status(403).json({ error: 'Only the RTE or an org manager can edit this program' });
+    const { name, description } = req.body;
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'Program name is required' });
+    await db.run(
+      'UPDATE programs SET name = $1, description = $2 WHERE id = $3',
+      [String(name).trim().slice(0, 60), description ? String(description).trim().slice(0, 300) : null, access.program.id]);
+    const program = await db.get('SELECT * FROM programs WHERE id = $1', [access.program.id]);
+    res.json(program);
+  }));
+
+  // Delete a program (RTE or org manager). Detaches teams and PIs; never deletes retros.
+  app.delete('/api/programs/:id', ah(async (req, res) => {
+    const access = await requireProgramAccess(req, res, req.params.id);
+    if (!access) return;
+    const user = await getUser(req);
+    const isManager = user.can_manage_org || user.is_master;
+    if (access.role !== 'rte' && !isManager) return res.status(403).json({ error: 'Only the RTE or an org manager can delete this program' });
+    await db.run('UPDATE teams SET program_id = NULL WHERE program_id = $1', [access.program.id]);
+    await db.run('DELETE FROM program_increments WHERE program_id = $1', [access.program.id]);
+    await db.run('DELETE FROM program_members WHERE program_id = $1', [access.program.id]);
+    await db.run('DELETE FROM programs WHERE id = $1', [access.program.id]);
+    res.json({ ok: true });
   }));
 
   app.get('/api/programs/:id', ah(async (req, res) => {
@@ -182,6 +238,35 @@ function register(app) {
     if (!access) return;
     const members = await db.all('SELECT username, role FROM team_members WHERE team_id = $1 ORDER BY role DESC, username', [access.team.id]);
     res.json({ ...access.team, members });
+  }));
+
+  // Update a team (team lead or org manager)
+  app.put('/api/teams/:id', ah(async (req, res) => {
+    const access = await requireTeamAccess(req, res, req.params.id);
+    if (!access) return;
+    const user = await getUser(req);
+    const isManager = user.can_manage_org || user.is_master;
+    if (access.role !== 'lead' && !isManager) return res.status(403).json({ error: 'Only the team lead or an org manager can edit this team' });
+    const { name } = req.body;
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'Team name is required' });
+    await db.run('UPDATE teams SET name = $1 WHERE id = $2', [String(name).trim().slice(0, 60), access.team.id]);
+    const team = await db.get('SELECT * FROM teams WHERE id = $1', [access.team.id]);
+    res.json(team);
+  }));
+
+  // Delete a team (team lead or org manager). Detaches retros (team_id=NULL);
+  // never deletes retros or commitments.
+  app.delete('/api/teams/:id', ah(async (req, res) => {
+    const access = await requireTeamAccess(req, res, req.params.id);
+    if (!access) return;
+    const user = await getUser(req);
+    const isManager = user.can_manage_org || user.is_master;
+    if (access.role !== 'lead' && !isManager) return res.status(403).json({ error: 'Only the team lead or an org manager can delete this team' });
+    await db.run('UPDATE retros SET team_id = NULL WHERE team_id = $1', [access.team.id]);
+    await db.run('UPDATE commitments SET depends_on_team_id = NULL WHERE depends_on_team_id = $1', [access.team.id]);
+    await db.run('DELETE FROM team_members WHERE team_id = $1', [access.team.id]);
+    await db.run('DELETE FROM teams WHERE id = $1', [access.team.id]);
+    res.json({ ok: true });
   }));
 
   // Add a team member (team lead or RTE)
