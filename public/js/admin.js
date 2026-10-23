@@ -95,7 +95,7 @@ async function loadUsers() {
             <td>${u.retros_created}</td>
             <td>${(u.created_at || '').slice(0, 10)}</td>
             <td class="users-actions">
-              <button class="btn btn-small user-edit" data-id="${u.id}" data-username="${Auth.esc(u.username)}" data-email="${Auth.esc(u.email || '')}" aria-label="${I18N.t('admin.edit')} ${Auth.esc(u.username)}">${I18N.t('admin.edit')}</button>
+              <button class="btn btn-small user-edit" data-id="${u.id}" data-username="${Auth.esc(u.username)}" data-email="${Auth.esc(u.email || '')}" data-master="${u.is_master ? 1 : 0}" aria-label="${I18N.t('admin.edit')} ${Auth.esc(u.username)}">${I18N.t('admin.edit')}</button>
               <button class="btn btn-small org-toggle" data-id="${u.id}" data-username="${Auth.esc(u.username)}" data-value="${u.can_manage_org ? 1 : 0}" aria-label="${u.can_manage_org ? I18N.t('admin.revokeOrg') : I18N.t('admin.grantOrg')} — ${Auth.esc(u.username)}">${u.can_manage_org ? I18N.t('admin.revokeOrg') : I18N.t('admin.grantOrg')}</button>
               <button class="btn btn-small btn-danger user-delete" data-id="${u.id}" data-username="${Auth.esc(u.username)}" aria-label="${I18N.t('admin.delete')} ${Auth.esc(u.username)}">${I18N.t('admin.delete')}</button>
             </td>
@@ -105,7 +105,7 @@ async function loadUsers() {
     </div>`;
 }
 
-function editUser(id, username, email) {
+function editUser(id, username, email, isMaster) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
@@ -119,12 +119,19 @@ function editUser(id, username, email) {
         <label>${I18N.t('admin.newPassPrompt').replace('{name}', username)}</label>
         <input id="au-pass" type="password" autocomplete="new-password">
       </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input id="au-master" type="checkbox" style="width:auto">
+          ⭐ ${I18N.t('admin.masterFlag')}
+        </label>
+      </div>
       <div class="modal-actions">
         <button class="btn secondary" id="au-cancel">${I18N.t('common.cancel')}</button>
         <button class="btn" id="au-save">${I18N.t('common.save')}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  overlay.querySelector('#au-master').checked = !!isMaster;
   overlay.querySelector('#au-email').focus();
   overlay.querySelector('#au-cancel').onclick = () => overlay.remove();
   overlay.querySelector('#au-save').onclick = async () => {
@@ -135,6 +142,8 @@ function editUser(id, username, email) {
     const body = {};
     if (newPassword) body.password = newPassword;
     if (newEmail !== (email || '')) body.email = newEmail;
+    const newMaster = overlay.querySelector('#au-master').checked;
+    if (newMaster !== !!isMaster) body.is_master = newMaster;
     if (!Object.keys(body).length) return overlay.remove();
     saveBtn.disabled = true;
     saveBtn.textContent = I18N.t('common.saving');
@@ -190,7 +199,7 @@ async function deleteUser(id, username) {
 document.getElementById('users-content')?.addEventListener('click', (e) => {
   const editBtn = e.target.closest('.user-edit');
   if (editBtn) {
-    editUser(Number(editBtn.dataset.id), editBtn.dataset.username, editBtn.dataset.email);
+    editUser(Number(editBtn.dataset.id), editBtn.dataset.username, editBtn.dataset.email, editBtn.dataset.master === '1');
     return;
   }
   const delBtn = e.target.closest('.user-delete');

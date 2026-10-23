@@ -637,6 +637,7 @@
     'admin.username': { en: 'Username', es: 'Usuario' },
     'admin.email': { en: 'Email', es: 'Email' },
     'admin.master': { en: 'Master', es: 'Master' },
+    'admin.masterFlag': { en: 'Master (full admin: user management, usage stats)', es: 'Master (admin total: gestión de usuarios, estadísticas de uso)' },
     'admin.orgManager': { en: 'Org Manager', es: 'Gestor Org.' },
     'admin.grantOrg': { en: 'Grant Org', es: 'Dar Org' },
     'admin.revokeOrg': { en: 'Revoke Org', es: 'Quitar Org' },
