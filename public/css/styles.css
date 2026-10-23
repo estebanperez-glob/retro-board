@@ -50,13 +50,25 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 32px;
-  background: var(--surface);
+  gap: 12px; flex-wrap: wrap;
+  padding: 12px 32px;
+  position: sticky; top: 0; z-index: 50;
+  background: linear-gradient(135deg, var(--surface) 0%, var(--accent-soft) 160%);
   border-bottom: 3px solid var(--ink);
-  box-shadow: 0 2px 0 var(--ink);
+  box-shadow: 0 2px 0 var(--ink), 0 6px 18px rgba(45, 52, 65, 0.12);
+  backdrop-filter: blur(8px);
 }
 
-header h1 { font-size: 1.4rem; }
+header h1 {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--orange) 55%, var(--yellow) 110%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(45, 52, 65, 0.25));
+}
 
 nav a {
   color: var(--muted);
@@ -65,11 +77,16 @@ nav a {
   font-weight: 700;
   padding: 6px 14px;
   border: 2px solid transparent;
-  border-radius: 10px;
-  transition: color 0.2s, border-color 0.2s, box-shadow 0.15s, transform 0.15s;
+  border-radius: 999px;
+  transition: color 0.2s, border-color 0.2s, box-shadow 0.15s, transform 0.15s, background 0.2s;
 }
-nav a:hover { color: var(--text); background: var(--surface-2); border-color: var(--ink); box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1px); }
-nav a.active { background: var(--yellow); color: var(--ink); border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+nav a:hover { color: var(--accent); background: var(--accent-soft); border-color: var(--ink); box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1px); }
+nav a.active {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--orange) 100%);
+  color: #fff;
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+}
 
 main { padding: 32px; max-width: 1400px; margin: 0 auto; }
 
@@ -672,11 +689,13 @@ header nav a:hover { color: var(--accent); }
 /* ---------- Mobile responsiveness ---------- */
 @media (max-width: 720px) {
   header {
-    flex-direction: column; gap: 8px; padding: 12px;
+    flex-direction: column; gap: 8px; padding: 10px 12px;
   }
+  header h1 { font-size: 1.25rem; }
   header nav {
-    display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
   }
+  header nav a { margin-left: 0; padding: 5px 12px; }
   .board { grid-template-columns: 1fr !important; }
   .column { margin-bottom: 16px; }
   .join-form { flex-direction: column; }
