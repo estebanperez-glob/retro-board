@@ -1066,3 +1066,41 @@ header nav a:hover { color: var(--accent); }
 }
 .org-stat strong { font-size: 1.3em; }
 .org-stat small { color: rgba(128, 128, 128, 0.9); }
+
+/* Organization page: help banner, empty-state guide, counters, program badge */
+.org-help-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; margin-bottom: 14px;
+  border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 12px;
+  background: rgba(59, 130, 246, 0.08);
+}
+.org-help-banner a { margin-left: auto; font-weight: 600; }
+.org-help-dismiss {
+  border: none; background: transparent; cursor: pointer;
+  color: inherit; font-size: 0.9rem; padding: 2px 6px; border-radius: 6px;
+}
+.org-help-dismiss:hover { background: rgba(128, 128, 128, 0.15); }
+.org-empty-guide {
+  text-align: center; padding: 28px 18px;
+  border: 1px dashed rgba(128, 128, 128, 0.4); border-radius: 14px;
+  max-width: 640px; margin: 8px auto;
+}
+.org-empty-emoji { font-size: 2.2rem; }
+.org-empty-steps { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
+.org-empty-step {
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  padding: 10px 12px; border-radius: 10px;
+  border: 1px solid rgba(128, 128, 128, 0.2);
+}
+.org-empty-step > div { flex: 1; }
+.org-empty-step p { margin: 2px 0 0; font-size: 0.85em; }
+.org-empty-more { margin-top: 8px; }
+.org-count {
+  display: inline-block; min-width: 22px; text-align: center;
+  padding: 1px 8px; border-radius: 999px; font-size: 0.75em;
+  background: rgba(59, 130, 246, 0.18); vertical-align: middle;
+}
+.org-badge-program { border: 1px solid rgba(59, 130, 246, 0.4); }
+.retro-card.open { transition: box-shadow 0.15s ease, transform 0.15s ease; }
+.retro-card.open:hover { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12); transform: translateY(-2px); }
+

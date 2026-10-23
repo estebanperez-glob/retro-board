@@ -89,6 +89,8 @@
         Auth.api('/programs'),
         Auth.api('/teams'),
       ]);
+      let helpDismissed = false;
+      try { helpDismissed = localStorage.getItem('orgHelpDismissed') === '1'; } catch (_) {}
       const programCards = programs.map(p => `
         <div class="retro-card open">
           <h3>📋 ${esc(p.name)}</h3>
@@ -105,22 +107,64 @@
           <p class="retro-badges">
             <span class="badge">🧑‍🤝‍🧑 ${tm.member_count} ${t('org.members')}</span>
             <span class="badge">🗂 ${tm.retro_count} ${t('org.retros')}</span>
+            ${tm.program_name ? `<span class="badge org-badge-program">📋 ${esc(tm.program_name || '')}</span>` : ''}
           </p>
           <button class="btn small team-open" data-id="${tm.id}">${t('org.openTeam')}</button>
         </div>`).join('');
 
+      const isEmpty = programs.length === 0 && teams.length === 0;
+      const emptyState = `
+        <div class="org-empty-guide">
+          <span class="org-empty-emoji">🏢</span>
+          <h3>${t('org.emptyTitle')}</h3>
+          <p class="muted">${t('org.emptySubtitle')}</p>
+          <div class="org-empty-steps">
+            <div class="org-empty-step">
+              <span class="guide-step-num">1</span>
+              <div><strong>${t('org.emptyS1')}</strong><p class="muted">${t('org.emptyS1d')}</p></div>
+              <button class="btn small" id="eg-new-program">${t('org.newProgram')}</button>
+            </div>
+            <div class="org-empty-step">
+              <span class="guide-step-num">2</span>
+              <div><strong>${t('org.emptyS2')}</strong><p class="muted">${t('org.emptyS2d')}</p></div>
+              <button class="btn small" id="eg-new-team">${t('org.newTeam')}</button>
+            </div>
+            <div class="org-empty-step">
+              <span class="guide-step-num">3</span>
+              <div><strong>${t('org.emptyS3')}</strong><p class="muted">${t('org.emptyS3d')}</p></div>
+            </div>
+            <div class="org-empty-step">
+              <span class="guide-step-num">4</span>
+              <div><strong>${t('org.emptyS4')}</strong><p class="muted">${t('org.emptyS4d')}</p></div>
+            </div>
+          </div>
+          <p class="muted org-empty-more">📖 <a href="/org-guide.html">${t('orgGuide.cta.orgGuide')}</a></p>
+        </div>`;
+
       el.innerHTML = `
+        <div class="org-help-banner" id="org-help-banner" ${helpDismissed ? 'hidden' : ''}>
+          <span>💡 ${t('org.helpBanner')}</span>
+          <a href="/org-guide.html">${t('orgGuide.cta.orgGuide')}</a>
+          <button class="org-help-dismiss" id="org-help-dismiss" aria-label="Dismiss">✕</button>
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
           <button class="btn" id="btn-new-program">➕ ${t('org.newProgram')}</button>
           <button class="btn" id="btn-new-team">➕ ${t('org.newTeam')}</button>
         </div>
-        <h3>${t('org.programs')}</h3>
+        ${isEmpty ? emptyState : `
+        <h3>${t('org.programs')} <span class="org-count">${programs.length}</span></h3>
         <div class="retro-grid">${programCards || `<p class="muted">${t('org.noPrograms')}</p>`}</div>
-        <h3 style="margin-top:20px">${t('org.teamsHeading')}</h3>
-        <div class="retro-grid">${teamCards || `<p class="muted">${t('org.noTeams')}</p>`}</div>`;
+        <h3 style="margin-top:20px">${t('org.teamsHeading')} <span class="org-count">${teams.length}</span></h3>
+        <div class="retro-grid">${teamCards || `<p class="muted">${t('org.noTeams')}</p>`}</div>`}`;
 
+      el.querySelector('#org-help-dismiss').onclick = () => {
+        try { localStorage.setItem('orgHelpDismissed', '1'); } catch (_) {}
+        el.querySelector('#org-help-banner').remove();
+      };
       el.querySelector('#btn-new-program').onclick = () => showCreateProgram();
       el.querySelector('#btn-new-team').onclick = () => showCreateTeam(programs);
+      el.querySelector('#eg-new-program')?.addEventListener('click', () => showCreateProgram());
+      el.querySelector('#eg-new-team')?.addEventListener('click', () => showCreateTeam(programs));
       el.querySelectorAll('.program-open').forEach(b => b.onclick = () => openProgram(b.dataset.id));
       el.querySelectorAll('.team-open').forEach(b => b.onclick = () => openTeam(b.dataset.id));
     } catch (err) {
@@ -144,7 +188,7 @@
         if (!name) { Auth.toast(t('org.nameRequired')); return; }
         const description = modal.querySelector('#np-desc')?.value.trim() || '';
         Auth.api('/programs', { method: 'POST', body: JSON.stringify({ name, description }) })
-          .then(() => { closeModal(); Auth.toast(t('org.programCreated')); loadOverview(); })
+          .then(program => { closeModal(); Auth.toast(t('org.programCreated')); showCreateTeam([program], program); })
           .catch(err => Auth.toast(err.message));
       };
       modal.querySelector('#np-save').onclick = save;
@@ -153,14 +197,14 @@
     });
   }
 
-  function showCreateTeam(programs) {
+  function showCreateTeam(programs, preselectedProgram) {
     openModal('➕ ' + t('org.newTeam'), `
       <label class="org-field"><span>${t('org.teamName')}</span>
         <input id="nt-name" type="text" maxlength="60" placeholder="${esc(t('org.teamNamePh'))}"></label>
       <label class="org-field"><span>${t('org.assignProgram')}</span>
         <select id="nt-program">
           <option value="">— ${t('org.standalone')} —</option>
-          ${programs.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}
+          ${programs.map(p => `<option value="${p.id}" ${preselectedProgram && preselectedProgram.id === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
         </select></label>
       <div class="org-modal-actions">
         <button class="btn secondary" id="nt-cancel">${t('org.cancel')}</button>
@@ -171,7 +215,7 @@
         if (!name) { Auth.toast(t('org.nameRequired')); return; }
         const programId = modal.querySelector('#nt-program').value;
         Auth.api('/teams', { method: 'POST', body: JSON.stringify({ name, program_id: programId ? Number(programId) : undefined }) })
-          .then(() => { closeModal(); Auth.toast(t('org.teamCreated')); loadOverview(); })
+          .then(team => { closeModal(); Auth.toast(t('org.teamCreated')); showAddTeamMember(team.id, [], team); })
           .catch(err => Auth.toast(err.message));
       };
       modal.querySelector('#nt-save').onclick = save;

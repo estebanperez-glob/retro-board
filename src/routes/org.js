@@ -224,7 +224,8 @@ function register(app) {
     const rows = await db.all(`
       SELECT DISTINCT t.*,
         (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) AS member_count,
-        (SELECT COUNT(*) FROM retros r WHERE r.team_id = t.id) AS retro_count
+        (SELECT COUNT(*) FROM retros r WHERE r.team_id = t.id) AS retro_count,
+        (SELECT p.name FROM programs p WHERE p.id = t.program_id) AS program_name
       FROM teams t
       LEFT JOIN team_members tm ON tm.team_id = t.id AND tm.username = $1
       LEFT JOIN teams pt ON pt.program_id IN (SELECT program_id FROM program_members WHERE user_id = $2)
