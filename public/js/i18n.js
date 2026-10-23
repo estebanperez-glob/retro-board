@@ -131,6 +131,7 @@
     'org.programCreated': { en: 'Program created', es: 'Programa creado' },
     'org.teamCreated': { en: 'Team created', es: 'Equipo creado' },
     'org.backToOrg': { en: 'Organization', es: 'Organización' },
+    'org.pageSubtitle': { en: 'Programs, teams and Program Increments — multi-team retrospectives.', es: 'Programas, equipos e Incrementos de Programa — retros multi-equipo.' },
     'org.healthScore': { en: 'Team Health Score', es: 'Salud del Equipo' },
     'org.done': { en: 'done', es: 'hechos' },
     'org.pending': { en: 'pending', es: 'pendientes' },

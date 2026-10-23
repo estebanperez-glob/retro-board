@@ -101,6 +101,14 @@ const Auth = {
       }
       const usageLink = nav.querySelector('.nav-drop-menu a[href="/admin.html"]');
       if (usageLink) usageLink.textContent = window.I18N.t('nav.usageStats');
+      // Keep the Account dropdown sorted alphabetically in the active language
+      const dropMenu = nav.querySelector('.nav-drop-menu');
+      if (dropMenu) {
+        const lang = localStorage.getItem('retroLang') || 'en';
+        [...dropMenu.children]
+          .sort((a, b) => a.textContent.localeCompare(b.textContent, lang))
+          .forEach(el => dropMenu.appendChild(el));
+      }
     }
     // Account dropdown toggle
     const accBtn = document.getElementById('nav-account-btn');
